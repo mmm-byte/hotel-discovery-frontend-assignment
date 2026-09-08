@@ -17,7 +17,7 @@ the dataset is bundled in `src/data/mock-data.json`.
 ```bash
 npm install      # install dependencies
 npm run dev      # start the dev server → http://localhost:5173
-npm test         # run the test suite (161 tests)
+npm test         # run the test suite
 npm run build    # production bundle in dist/
 npm run lint     # ESLint check
 ```
@@ -101,6 +101,31 @@ easy to test in isolation and easy to coordinate across views.
 
 ---
 
+## Data modeling
+
+The app treats `src/data/mock-data.json` as the single source of truth,
+loaded once at module scope and never mutated. Two shapes drive the UI:
+
+- **Hotel** — `id`, `name`, `description`, `star_rating`, `overall_rating`,
+  `review_count`, `address` (street/city/state/zip/country), `contact`
+  (phone/email), `amenities[]`, `policies` (check-in/check-out times,
+  cancellation text), and `rooms[]`.
+- **Room** — `room_id`, `type`, `bed_type`, `bed_count`, `max_occupancy`,
+  `square_footage`, `price_per_night`, `room_amenities[]`, and
+  `available_dates[]` (an explicit list of ISO nights the room can be
+  booked, rather than a date range — this matches the provided seed and
+  lets availability be computed with a simple set lookup instead of range
+  math).
+
+All derived values — cheapest room price, cancellation badge text, rating
+tier, review-score breakdown — are computed from these two shapes by pure
+functions in `useHotels.js`, never hard-coded in components. The full
+field-by-field contract, including which fields are required vs. optional
+and how the UI degrades if a field is missing, is documented in
+[`docs/json-data-contract.md`](docs/json-data-contract.md).
+
+---
+
 ## Notes on edge cases and assumptions
 
 The dashboard handles empty filter results with a clear message and a
@@ -111,3 +136,43 @@ dates (disabled in the calendar). Full discussion of tradeoffs lives in
 [`docs/assumptions-and-tradeoffs.md`](docs/assumptions-and-tradeoffs.md),
 and the data contract that drives every UI choice lives in
 [`docs/json-data-contract.md`](docs/json-data-contract.md).
+
+---
+
+## AI tooling usage
+
+I used GitHub Copilot and ChatGPT during development, primarily for
+scaffolding and first-draft generation, with all logic reviewed, tested,
+and in several cases corrected by hand before it was committed.
+
+**Where AI helped:**
+- Scaffolding boilerplate — the initial Vite/React project setup, ESLint
+  config, and first-draft component shells for `FilterDashboard`,
+  `HotelCard`, `HotelDetail`, and `RoomAvailability`.
+- First-draft unit and component tests, which I then edited to cover the
+  specific edge cases in this assignment (e.g., a room available for
+  three consecutive nights but not the fourth, hotels with zero rooms,
+  invalid check-out-before-check-in ranges).
+- Drafting CSS for the design system (tokens, card layout, responsive
+  breakpoints) which I then adjusted for contrast, spacing, and mobile
+  behavior.
+
+**Where I made the calls myself:**
+- The core availability rule — a room only counts as available if
+  *every* night of the selected stay appears in its `available_dates`
+  array, not just the check-in date — was a decision I made and tested
+  explicitly, since getting this wrong would silently show rooms that
+  aren't actually bookable for the full stay.
+- I found and fixed a real bug in AI-generated code: an early version
+  used a native `<input type="date">` for the range picker, which
+  silently swallowed partial input and never fired `onChange` reliably.
+  I diagnosed this in the browser and replaced it with a custom
+  two-month calendar component using click-based state instead.
+- Data-contract decisions (which JSON fields are required vs. optional,
+  how components degrade when a field is missing) were made by reading
+  the provided mock data directly, not generated.
+
+**What I did not do:** I did not accept AI-generated code without running
+it, and I did not use AI to write the assumptions/tradeoffs documentation
+in [`docs/assumptions-and-tradeoffs.md`](docs/assumptions-and-tradeoffs.md)
+— that reflects my own reasoning about scope and design decisions.
