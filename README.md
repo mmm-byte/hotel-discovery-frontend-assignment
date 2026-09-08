@@ -6,15 +6,48 @@ depth a real booking site needs.
 
 ---
 
+## Prerequisites
+
+- **Node.js ≥ 18** (tested on Node 22)
+- **npm ≥ 9** (ships with Node 22)
+
+No global packages or database are required — everything is seeded from
+`src/data/mock-data.json` at module-load time.
+
+---
+
 ## Quick start
 
 ```bash
+# 1. Install dependencies (uses the committed package-lock.json for a
+#    reproducible install).
 npm install
-npm run dev          # http://localhost:5173
-npm test             # 116/116 tests
-npm run build        # production bundle in dist/
-npm run lint # ESLint check
+
+# 2. Start the dev server with hot module reload.
+npm run dev          # → http://localhost:5173
+
+# 3. Run the test suite (161 tests, <2 s).
+npm test
+
+# 4. Lint, or do both at once.
+npm run lint
+npm run verify       # lint + test
 ```
+
+### Other scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server with HMR on port 5173 (falls back to 5174 if busy) |
+| `npm run test` | Run all tests once (CI mode) |
+| `npm run test:watch` | Re-run tests on every file change |
+| `npm run build` | Production bundle in `dist/` |
+| `npm run preview` | Serve the built `dist/` locally |
+| `npm run lint` | ESLint v9 flat-config check |
+| `npm run verify` | Lint + test together |
+
+If port 5173 is already in use, Vite automatically picks the next free port
+and prints the URL in the terminal.
 
 ---
 
@@ -134,14 +167,16 @@ and tested directly. The hook is a thin state container over those functions.
 
 ## Testing
 
-116 tests across 6 files, all passing in <2s. Coverage targets:
+161 tests across 8 files, all passing in <2s. Coverage targets:
 
-- **`useHotels.test.js`** (40 tests) — every pure helper, including a "real seed sanity" guard against contract drift.
-- **`HotelCard.test.jsx`** (11 tests) — rendering, sold-out state, click/keyboard, CTA changes.
-- **`FilterDashboard.test.jsx`** (14 tests) — every filter, sort, active chip, empty state.
-- **`HotelDetail.test.jsx`** (9 tests) — every section, back button, sticky bar, contact.
-- **`RoomAvailability.test.jsx`** (11 tests) — custom calendar selection, every empty state, room totals.
-- **`App.test.jsx`** (6 tests) — high-level view-switching, brand nav, footer.
+- **`useHotels.test.js`** (72 tests) — every pure helper (filter, sort, date matching, review breakdown), including a "real seed sanity" guard against contract drift.
+- **`amenityIcons.test.js`** (7 tests) — every glyph + label, including unknown-amenity fallback.
+- **`images.test.js`** (10 tests) — deterministic Unsplash URL building + per-city gradient lookup.
+- **`HotelCard.test.jsx`** (15 tests) — rendering, sold-out state, click/keyboard, CTA changes.
+- **`FilterDashboard.test.jsx`** (20 tests) — every filter, sort, active chip, empty state.
+- **`HotelDetail.test.jsx`** (18 tests) — every section, back buttons, sticky bar, reserve card.
+- **`RoomAvailability.test.jsx`** (12 tests) — custom calendar selection, every empty state, room totals.
+- **`App.test.jsx`** (7 tests) — high-level view-switching, brand nav, footer.
 
 **Date-handling note:** all tests use future-relative dates so the suite doesn't
 bit-rot as real calendar time advances.
