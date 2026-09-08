@@ -141,38 +141,8 @@ and the data contract that drives every UI choice lives in
 
 ## AI tooling usage
 
-I used GitHub Copilot and ChatGPT during development, primarily for
-scaffolding and first-draft generation, with all logic reviewed, tested,
-and in several cases corrected by hand before it was committed.
+Leveraged GitHub Copilot and ChatGPT to accelerate the full development lifecycle through strategic prompting and strict human oversight:
+* **Research & Planning:** Used AI to analyze existing solutions, define system architecture, and map out technical prerequisites before development.
+* **Guided Execution:** Provided precise, detailed instructions to scaffold component shells, CSS, and initial testing workflows.
+* **Quality Assurance:** Designed AI-assisted testing processes. All AI-generated code was rigorously reviewed, manually refined, and tested before committing.
 
-**Where AI helped:**
-- Scaffolding boilerplate — the initial Vite/React project setup, ESLint
-  config, and first-draft component shells for `FilterDashboard`,
-  `HotelCard`, `HotelDetail`, and `RoomAvailability`.
-- First-draft unit and component tests, which I then edited to cover the
-  specific edge cases in this assignment (e.g., a room available for
-  three consecutive nights but not the fourth, hotels with zero rooms,
-  invalid check-out-before-check-in ranges).
-- Drafting CSS for the design system (tokens, card layout, responsive
-  breakpoints) which I then adjusted for contrast, spacing, and mobile
-  behavior.
-
-**Where I made the calls myself:**
-- The core availability rule — a room only counts as available if
-  *every* night of the selected stay appears in its `available_dates`
-  array, not just the check-in date — was a decision I made and tested
-  explicitly, since getting this wrong would silently show rooms that
-  aren't actually bookable for the full stay.
-- I found and fixed a real bug in AI-generated code: an early version
-  used a native `<input type="date">` for the range picker, which
-  silently swallowed partial input and never fired `onChange` reliably.
-  I diagnosed this in the browser and replaced it with a custom
-  two-month calendar component using click-based state instead.
-- Data-contract decisions (which JSON fields are required vs. optional,
-  how components degrade when a field is missing) were made by reading
-  the provided mock data directly, not generated.
-
-**What I did not do:** I did not accept AI-generated code without running
-it, and I did not use AI to write the assumptions/tradeoffs documentation
-in [`docs/assumptions-and-tradeoffs.md`](docs/assumptions-and-tradeoffs.md)
-— that reflects my own reasoning about scope and design decisions.
