@@ -83,9 +83,6 @@ export default function App() {
           </form>
 
           <span className="spacer" />
-          <span className="badge badge--info" aria-live="polite" data-testid="property-count">
-            {filtered.length} {filtered.length === 1 ? 'property' : 'properties'} to discover
-          </span>
         </div>
       </header>
 

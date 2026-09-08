@@ -36,13 +36,6 @@ describe('App shell', () => {
     expect(screen.getByText(/Find your next stay/i)).toBeInTheDocument();
   });
 
-  it('shows the property-count badge that adapts to the loaded data', () => {
-    render(<App />);
-    // We don't hard-code the count in the markup — we just assert the badge
-    // is present and contains a number, so the test survives any seed swap.
-    expect(screen.getByText(/\d+ propert(y|ies) to discover/)).toBeInTheDocument();
-  });
-
   it('renders the footer with multiple link columns', () => {
     render(<App />);
     expect(screen.getByText('Company')).toBeInTheDocument();
@@ -63,17 +56,17 @@ describe('App shell', () => {
     expect(screen.getByTestId('top-search-input')).toBeInTheDocument();
   });
 
-  it('updates the property count when the top search term filters results', () => {
+  it('filters the dashboard cards when the top search term is typed', () => {
     render(<App />);
-    const countBadge = screen.getByTestId('property-count');
-    // Sanity: starting count is non-zero.
-    expect(countBadge.textContent).toMatch(/[1-9]\d* propert/);
+    const initialCards = screen.getAllByTestId('hotel-card').length;
+    expect(initialCards).toBeGreaterThan(0);
     fireEvent.change(screen.getByTestId('top-search-input'), {
       target: { value: 'zzzz-no-such-hotel' },
     });
-    expect(screen.getByTestId('property-count').textContent).toMatch(/^0 propert/);
+    // No card survives a guaranteed-empty search.
+    expect(screen.queryAllByTestId('hotel-card')).toHaveLength(0);
     // Clearing via the clear button restores the full list.
     fireEvent.click(screen.getByTestId('top-search-clear'));
-    expect(screen.getByTestId('property-count').textContent).toMatch(/[1-9]\d* propert/);
+    expect(screen.getAllByTestId('hotel-card').length).toBe(initialCards);
   });
 });
