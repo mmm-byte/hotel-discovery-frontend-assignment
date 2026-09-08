@@ -1,0 +1,1 @@
+Assignment assumptions and deliberate tradeoffs.

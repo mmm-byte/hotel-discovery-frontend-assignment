@@ -1,0 +1,1 @@
+Application shell that toggles dashboard and detail views.

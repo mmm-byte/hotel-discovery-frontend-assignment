@@ -1,0 +1,1 @@
+Property detail view with policy and amenity sections.

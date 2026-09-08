@@ -1,0 +1,1 @@
+Hotel card rendering and selection test.

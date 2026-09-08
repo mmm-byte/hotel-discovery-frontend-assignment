@@ -1,0 +1,1 @@
+Central hook for JSON data, filters, selected hotel, and date-based availability.

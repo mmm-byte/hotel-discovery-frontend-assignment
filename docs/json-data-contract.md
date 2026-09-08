@@ -1,0 +1,1 @@
+Safe JSON expansion and data-contract rules.

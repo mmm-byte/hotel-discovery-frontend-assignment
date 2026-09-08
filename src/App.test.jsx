@@ -1,0 +1,1 @@
+High-level view-switching test.
