@@ -171,6 +171,18 @@ export function hotelHasNoRooms(hotel) {
 }
 
 /**
+ * Whether a hotel has at least one room available for the given date range.
+ * Returns true when either:
+ *   - checkIn or checkOut is missing (no constraint to enforce), or
+ *   - the hotel has at least one room whose available_dates cover the stay.
+ * Returns false only when dates are set and no room can cover them.
+ */
+export function hotelHasRoomsFor(hotel, checkIn, checkOut) {
+  if (!checkIn || !checkOut) return true;
+  return availableRooms(hotel, checkIn, checkOut).length > 0;
+}
+
+/**
  * Cancellation-policy badge text derived from the free-text cancellation field.
  * Returns { short, kind } where kind is 'free' | 'nonref' | 'unknown'.
  * Matches the §5.1 vocabulary table.
@@ -244,6 +256,8 @@ export const SORT_OPTIONS = [
  *  - freeCancel:  if true, hotel must have a free-cancellation policy.
  *  - amenities:   hotel must include every string in this list.
  *  - roomBedType: hotel must have at least one room with this bed_type.
+ *  - checkIn/checkOut: if both set, hotel must have at least one room
+ *                      available for the full [checkIn, checkOut) range.
  *  - sort:        ordering of the result set.
  *
  * Hotels with no rooms are NOT excluded by price filtering — their price is
@@ -259,6 +273,8 @@ export function filterHotels(hotels, {
   freeCancel = false,
   amenities = [],
   roomBedType = null,
+  checkIn = '',
+  checkOut = '',
   sort = 'recommended',
 } = {}) {
   const q = String(search || '').trim().toLowerCase();
@@ -292,6 +308,11 @@ export function filterHotels(hotels, {
     if (roomBedType) {
       const ok = (hotel.rooms || []).some((r) => r.bed_type === roomBedType);
       if (!ok) return false;
+    }
+    // Dashboard date filter — exclude hotels with no available rooms for
+    // the selected stay. Only applies when BOTH dates are set.
+    if (checkIn && checkOut && !hotelHasRoomsFor(hotel, checkIn, checkOut)) {
+      return false;
     }
     // Free-text search across name, city, and description
     if (q) {
@@ -360,17 +381,26 @@ export function activeFilterCount(filters, defaults) {
 }
 
 /**
- * Parse an ISO YYYY-MM-DD date string into a UTC midnight Date.
- * We use UTC to avoid DST/timezone drift when computing night counts.
+ * File-private ISO date helpers (UTC-based to avoid DST drift).
+ * Defined at the top of the file so every helper below can use them.
  */
-function parseISODate(iso) {
-  if (!iso || typeof iso !== 'string') return null;
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+function toISODate(date) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function fromISODate(iso) {
+  if (!iso) return null;
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
-  const [, y, mo, d] = m;
-  const dt = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+}
+const parseISODate = fromISODate;
+function formatHumanDate(iso) {
+  const d = fromISODate(iso);
+  if (!d) return iso;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 /**
@@ -419,6 +449,72 @@ export function availableRooms(hotel, checkIn, checkOut) {
   if (!hotel || !Array.isArray(hotel.rooms)) return [];
   if (!checkIn || !checkOut) return [];
   return hotel.rooms.filter((r) => isRoomAvailable(r, checkIn, checkOut));
+}
+
+
+
+/**
+ * Find the next N available date windows for a hotel starting at or after
+ * `fromIso`. A "window" is a [checkIn, checkOut) range of `nights` length
+ * where at least one room can cover every night.
+ *
+ * Algorithm:
+ *   1. Collect every individual date the hotel has ANY room available for.
+ *   2. Walk forward day-by-day from `fromIso`, looking for the first run of
+ *      `nights` consecutive available dates.
+ *   3. After finding a window, jump ahead by `nights + 1` days so the next
+ *      suggestion is meaningfully separated.
+ *   4. Return up to `maxWindows` results, each as { checkIn, checkOut, label }.
+ *
+ * The label is a human-readable summary like "Aug 14 → Aug 17" so the UI can
+ * render suggestions without re-parsing ISO strings.
+ */
+export function recommendDateWindows(hotel, fromIso, nights = 2, maxWindows = 3) {
+  if (!hotel || !Array.isArray(hotel.rooms) || hotel.rooms.length === 0) return [];
+  if (!fromIso) return [];
+  const start = fromISODate(fromIso);
+  if (!start) return [];
+
+  // Build a set of all available dates across all rooms.
+  const allDates = new Set();
+  for (const room of hotel.rooms) {
+    for (const d of room.available_dates || []) allDates.add(d);
+  }
+  if (allDates.size === 0) return [];
+
+  // We walk up to 365 days ahead — plenty for any real inventory.
+  const OUT = [];
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const cursor = new Date(start);
+  for (let day = 0; day < 365 && OUT.length < maxWindows; day++) {
+    const isoDay = toISODate(cursor);
+    if (allDates.has(isoDay)) {
+      // Found a candidate start — check that the next `nights - 1` days
+      // are all in the available set.
+      let ok = true;
+      const probe = new Date(cursor);
+      for (let i = 0; i < nights; i++) {
+        if (!allDates.has(toISODate(probe))) { ok = false; break; }
+        probe.setUTCDate(probe.getUTCDate() + 1);
+      }
+      if (ok) {
+        const checkInIso = isoDay;
+        const checkOutIso = toISODate(probe);
+        OUT.push({
+          checkIn: checkInIso,
+          checkOut: checkOutIso,
+          label: `${formatHumanDate(checkInIso)} → ${formatHumanDate(checkOutIso)}`,
+        });
+        // Skip past this window so suggestions are spread out.
+        cursor.setUTCDate(cursor.getUTCDate() + nights + 1);
+        continue;
+      }
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    // (also keep `cursor` advancing — handled at the bottom of the loop)
+    void ONE_DAY_MS;
+  }
+  return OUT;
 }
 
 /**
@@ -522,8 +618,14 @@ export function useHotels() {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
 
-  // Memoized filtered list — recomputes only when filters or the underlying data change.
-  const filtered = useMemo(() => filterHotels(hotels, filters), [hotels, filters]);
+  // Memoized filtered list — recomputes only when filters or the underlying
+  // data change. The dashboard date filter (checkIn/checkOut) is part of the
+  // same memo so picking dates at the top level hides hotels that can't
+  // accommodate the stay.
+  const filtered = useMemo(
+    () => filterHotels(hotels, { ...filters, checkIn, checkOut }),
+    [hotels, filters, checkIn, checkOut]
+  );
 
   /**
    * Patch one or more filter fields.

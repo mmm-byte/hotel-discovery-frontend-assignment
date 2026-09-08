@@ -94,6 +94,70 @@ function StarSelector({ value, onChange, max = 5, testIdPrefix = 'filter-stars' 
 }
 
 /**
+ * Compact two-input date filter for the dashboard. Uses native <input
+ * type="date"> elements which work reliably when the user clicks the
+ * calendar icon (the broken-typing case from v1 doesn't apply here because
+ * the dashboard filter is meant to be picked, not typed).
+ *
+ * Props:
+ *   - checkIn / checkOut: 'YYYY-MM-DD' or ''.
+ *   - onChange({ checkIn?, checkOut? }): patches the parent's date state.
+ *   - onClear(): called when the user clicks "Clear dates".
+ */
+function DashboardDateFilter({ checkIn, checkOut, onChange, onClear }) {
+  const nights = (() => {
+    if (!checkIn || !checkOut) return 0;
+    const a = new Date(`${checkIn}T00:00:00Z`).getTime();
+    const b = new Date(`${checkOut}T00:00:00Z`).getTime();
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
+    return Math.round((b - a) / (24 * 60 * 60 * 1000));
+  })();
+  return (
+    <div className="dashboard-dates" data-testid="dashboard-date-filter">
+      <span className="dashboard-dates__icon" aria-hidden="true">📅</span>
+      <div className="dashboard-dates__inputs">
+        <label className="dashboard-dates__field">
+          <span className="dashboard-dates__label">Check-in</span>
+          <input
+            type="date"
+            className="field__control"
+            value={checkIn}
+            onChange={(e) => onChange?.({ checkIn: e.target.value })}
+            data-testid="dashboard-checkin"
+          />
+        </label>
+        <span className="dashboard-dates__sep" aria-hidden="true">→</span>
+        <label className="dashboard-dates__field">
+          <span className="dashboard-dates__label">Check-out</span>
+          <input
+            type="date"
+            className="field__control"
+            value={checkOut}
+            onChange={(e) => onChange?.({ checkOut: e.target.value })}
+            data-testid="dashboard-checkout"
+          />
+        </label>
+        {(checkIn || checkOut) && (
+          <span className="dashboard-dates__nights" data-testid="dashboard-nights">
+            {nights > 0 ? `${nights} night${nights > 1 ? 's' : ''}` : 'Invalid range'}
+          </span>
+        )}
+      </div>
+      {(checkIn || checkOut) && (
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          onClick={onClear}
+          data-testid="dashboard-dates-clear"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * A generic dual-handle range slider used for both price and star-rating.
  *
  * The component renders two stacked <input type="range"> elements with
@@ -227,6 +291,9 @@ export default function FilterDashboard({
   onChangeFilter,
   onReset,
   onSelect,
+  checkIn = '',
+  checkOut = '',
+  onChangeDates = null,
 }) {
   const { CITIES, AMENITIES, BED_TYPES, MIN_PRICE, MAX_PRICE, MAX_STAR, SORT_OPTIONS } = meta || {};
   const activeCount = useMemo(
@@ -240,7 +307,6 @@ export default function FilterDashboard({
 
   // Handlers ---------------------------------------------------------------
   const handleCityChange = (e) => onChangeFilter?.({ city: e.target.value });
-  const handleSearchChange = (e) => onChangeFilter?.({ search: e.target.value });
   const handleStarsChange = (n) => onChangeFilter?.({ minStars: n });
   const handleRatingChange = (e) => onChangeFilter?.({ minRating: e.target.value === '' ? null : Number(e.target.value) });
   const handleBedTypeChange = (e) => onChangeFilter?.({ roomBedType: e.target.value || null });
@@ -365,21 +431,15 @@ export default function FilterDashboard({
               ✓ Free cancellation only
             </Chip>
           </div>
-
-          {/* Free-text search */}
-          <label className="field">
-            <span className="field__label" id="filter-search-label">Search</span>
-            <input
-              className="field__control"
-              type="search"
-              aria-labelledby="filter-search-label"
-              placeholder="Hotel name, keyword…"
-              value={filters.search}
-              onChange={handleSearchChange}
-              data-testid="filter-search"
-            />
-          </label>
         </div>
+
+        {/* Dashboard date filter — full width, between the grid and the price slider */}
+        <DashboardDateFilter
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onChange={onChangeDates}
+          onClear={() => onChangeDates?.({ checkIn: '', checkOut: '' })}
+        />
 
         {/* Price range slider — full width, below the grid */}
         <div className="field" style={{ marginTop: '1rem' }}>
@@ -480,6 +540,8 @@ export default function FilterDashboard({
               key={hotel.id}
               hotel={hotel}
               onSelect={onSelect}
+              checkIn={checkIn}
+              checkOut={checkOut}
             />
           ))}
         </div>

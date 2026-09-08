@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import HotelCard from './HotelCard';
 
 const sampleHotel = {
@@ -99,5 +99,31 @@ describe('HotelCard', () => {
   it('renders nothing for an invalid hotel prop', () => {
     const { container } = render(<HotelCard hotel={null} onSelect={() => {}} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('shows the generic "No rooms" badge when the hotel has no rooms at all', () => {
+    const soldOut = { ...sampleHotel, rooms: [] };
+    render(<HotelCard hotel={soldOut} onSelect={() => {}} />);
+    const card = screen.getByTestId('hotel-card');
+    expect(within(card).getByTestId('no-rooms-badge')).toHaveTextContent(/No rooms/);
+    expect(within(card).getByText(/View property/i)).toBeInTheDocument();
+  });
+
+  it('shows the "no rooms for your dates" badge when dates are set but nothing matches', () => {
+    // Rooms exist, but none are available on 2099-01-01 → 2099-01-05.
+    render(
+      <HotelCard hotel={sampleHotel} onSelect={() => {}} checkIn="2099-01-01" checkOut="2099-01-05" />
+    );
+    const card = screen.getByTestId('hotel-card');
+    expect(within(card).getByTestId('no-rooms-badge')).toHaveTextContent(/No rooms for your dates/i);
+  });
+
+  it('does not show any "no rooms" badge when rooms are available for the selected dates', () => {
+    // sampleHotel room t1 has 2026-07-10 and 2026-07-11 available, so a
+    // 1-night stay 2026-07-10 → 2026-07-11 is satisfiable.
+    render(
+      <HotelCard hotel={sampleHotel} onSelect={() => {}} checkIn="2026-07-10" checkOut="2026-07-11" />
+    );
+    expect(screen.queryByTestId('no-rooms-badge')).not.toBeInTheDocument();
   });
 });

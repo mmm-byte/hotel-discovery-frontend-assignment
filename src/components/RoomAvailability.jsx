@@ -31,6 +31,7 @@ import {
   formatPrice,
   hotelHasNoRooms,
   nightsBetween,
+  recommendDateWindows,
 } from '../store/useHotels';
 
 // ----------------------------------------------------------------------------
@@ -382,6 +383,50 @@ export default function RoomAvailability({ hotel, checkIn, checkOut, onChangeDat
     return `Showing ${rooms.length} of ${totalRooms} room${totalRooms === 1 ? '' : 's'} for your ${nights.length}-night stay.`;
   })();
 
+  // Recommend up to 3 nearby date windows when no rooms match the selected
+  // stay. We use the same night count as the user's selected stay so the
+  // suggestions are drop-in replacements. Only computed when the user has
+  // already picked a start date so we don't recommend the past.
+  const recommendedWindows = useMemo(() => {
+    if (!checkIn || !checkOut || nights.length === 0) return [];
+    if (rooms.length > 0) return [];
+    return recommendDateWindows(hotel, checkIn, nights.length, 3);
+  }, [hotel, checkIn, checkOut, nights.length, rooms.length]);
+
+  // Clicking a suggestion commits it to the parent's date state.
+  const applyWindow = (win) => {
+    onChangeDates?.({ checkIn: win.checkIn, checkOut: win.checkOut });
+  };
+
+  /**
+   * Recommended-dates panel. Rendered inside the "no rooms for these dates"
+   * and "no rooms ever" empty states when we have at least one suggestion.
+   */
+  const renderRecommended = () => {
+    if (recommendedWindows.length === 0) return null;
+    return (
+      <div className="recommended-dates" data-testid="recommended-dates">
+        <p className="recommended-dates__title">Try one of these available stays:</p>
+        <div className="recommended-dates__list">
+          {recommendedWindows.map((win) => (
+            <button
+              key={`${win.checkIn}-${win.checkOut}`}
+              type="button"
+              className="recommended-dates__chip"
+              onClick={() => applyWindow(win)}
+              data-testid="recommended-window"
+              data-checkin={win.checkIn}
+              data-checkout={win.checkOut}
+            >
+              <span className="recommended-dates__icon" aria-hidden="true">📅</span>
+              <span className="recommended-dates__label">{win.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="availability" data-testid="room-availability">
       <header className="availability__head">
@@ -415,6 +460,7 @@ export default function RoomAvailability({ hotel, checkIn, checkOut, onChangeDat
             This property has no rooms in inventory right now. Try a different property
             from the search results.
           </p>
+          {renderRecommended()}
         </div>
       ) : !checkIn || !checkOut ? (
         <div className="empty-state" data-testid="please-pick-dates">
@@ -439,6 +485,7 @@ export default function RoomAvailability({ hotel, checkIn, checkOut, onChangeDat
           <p className="empty-state__hint">
             Try a different date range — different nights often have different inventory.
           </p>
+          {renderRecommended()}
         </div>
       ) : (
         <div className="room-list" data-testid="room-list">

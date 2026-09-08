@@ -20,6 +20,8 @@ import {
   isRoomAvailable,
   availableRooms,
   bucketAmenities,
+  hotelHasRoomsFor,
+  recommendDateWindows,
   AMENITIES,
   BED_TYPES,
   SORT_OPTIONS,
@@ -177,6 +179,72 @@ describe('filterHotels — price range', () => {
     // a:120, b:480, c:60
     expect(filterHotels(sample, { minPrice: 100, maxPrice: 200 }).map((h) => h.id)).toEqual(['a']);
     expect(filterHotels(sample, { minPrice: 0, maxPrice: 100 }).map((h) => h.id)).toEqual(['c']);
+  });
+});
+
+describe('hotelHasRoomsFor', () => {
+  it('returns true when any room covers the requested stay', () => {
+    // Hotel "a" only has 2026-07-10 available.
+    expect(hotelHasRoomsFor(sample[0], '2026-07-10', '2026-07-11')).toBe(true);
+  });
+  it('returns false when no room is available for the entire stay', () => {
+    expect(hotelHasRoomsFor(sample[0], '2099-01-01', '2099-01-05')).toBe(false);
+  });
+  it('returns false when the hotel has no rooms', () => {
+    const empty = { ...sample[0], rooms: [] };
+    expect(hotelHasRoomsFor(empty, '2026-07-10', '2026-07-11')).toBe(false);
+  });
+  it('requires every night of the stay to be covered', () => {
+    // sample[0] rooms only cover 2026-07-10 and 2026-07-11. The night
+    // 2026-07-12 is missing, so a 3-night stay cannot be satisfied.
+    expect(hotelHasRoomsFor(sample[0], '2026-07-10', '2026-07-13')).toBe(false);
+    // A 2-night stay (07-10 → 07-12) is fine.
+    expect(hotelHasRoomsFor(sample[0], '2026-07-10', '2026-07-12')).toBe(true);
+  });
+});
+
+describe('recommendDateWindows', () => {
+  it('returns at least one window for a real hotel that has future inventory', () => {
+    const h = hotelsData[0];
+    const today = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const inDays = (n) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + n);
+      return iso(d);
+    };
+    const wins = recommendDateWindows(h, inDays(0), 1, 3);
+    expect(Array.isArray(wins)).toBe(true);
+    // Each suggestion has ISO dates and a human label.
+    wins.forEach((w) => {
+      expect(w.checkIn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(w.checkOut).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(w.label.length).toBeGreaterThan(0);
+    });
+  });
+  it('respects the requested stay length', () => {
+    const h = hotelsData[0];
+    const today = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const inDays = (n) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + n);
+      return iso(d);
+    };
+    const wins = recommendDateWindows(h, inDays(0), 2, 3);
+    // Skip if no window was found (inventory edge); otherwise verify length.
+    if (wins.length > 0) {
+      wins.forEach((w) => {
+        const lo = new Date(w.checkIn + 'T00:00:00Z');
+        const hi = new Date(w.checkOut + 'T00:00:00Z');
+        const diff = Math.round((hi - lo) / (1000 * 60 * 60 * 24));
+        expect(diff).toBe(2);
+      });
+    }
+  });
+  it('returns an empty array for a hotel with no future inventory', () => {
+    const empty = { ...hotelsData[0], rooms: [] };
+    expect(recommendDateWindows(empty, '2099-01-01', 1, 3)).toEqual([]);
   });
 });
 

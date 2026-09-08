@@ -80,19 +80,6 @@ describe('FilterDashboard', () => {
     expect(onChange).toHaveBeenCalledWith({ city: 'Paris' });
   });
 
-  it('calls onChangeFilter when the search input changes', () => {
-    const onChange = vi.fn();
-    render(
-      <FilterDashboard
-        hotels={HOTELS} filtered={HOTELS} filters={DEFAULT_FILTERS}
-        defaultFilters={DEFAULT_FILTERS} meta={META}
-        onChangeFilter={onChange} onReset={() => {}} onSelect={() => {}}
-      />
-    );
-    fireEvent.change(screen.getByTestId('filter-search'), { target: { value: 'cozy' } });
-    expect(onChange).toHaveBeenCalledWith({ search: 'cozy' });
-  });
-
   it('selects a minimum star rating and clears it on a second click', () => {
     const onChange = vi.fn();
     const { rerender } = render(
@@ -283,5 +270,49 @@ describe('FilterDashboard', () => {
     );
     fireEvent.click(screen.getByTestId('empty-reset'));
     expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the dashboard date filter with the current dates', () => {
+    const onChangeDates = vi.fn();
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS} filters={DEFAULT_FILTERS}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+        checkIn="2026-07-10" checkOut="2026-07-12" onChangeDates={onChangeDates}
+      />
+    );
+    const filter = screen.getByTestId('dashboard-date-filter');
+    expect(within(filter).getByTestId('dashboard-checkin')).toHaveValue('2026-07-10');
+    expect(within(filter).getByTestId('dashboard-checkout')).toHaveValue('2026-07-12');
+    expect(within(filter).getByTestId('dashboard-nights').textContent).toMatch(/2 nights/);
+  });
+
+  it('emits onChangeDates when the check-in field changes', () => {
+    const onChangeDates = vi.fn();
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS} filters={DEFAULT_FILTERS}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+        checkIn="2026-07-10" checkOut="2026-07-12" onChangeDates={onChangeDates}
+      />
+    );
+    fireEvent.change(screen.getByTestId('dashboard-checkin'), { target: { value: '2026-08-01' } });
+    expect(onChangeDates).toHaveBeenCalledWith({ checkIn: '2026-08-01' });
+  });
+
+  it('clears the dates when the dashboard clear button is clicked', () => {
+    const onChangeDates = vi.fn();
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS} filters={DEFAULT_FILTERS}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+        checkIn="2026-07-10" checkOut="2026-07-12" onChangeDates={onChangeDates}
+      />
+    );
+    fireEvent.click(screen.getByTestId('dashboard-dates-clear'));
+    expect(onChangeDates).toHaveBeenCalledWith({ checkIn: '', checkOut: '' });
   });
 });

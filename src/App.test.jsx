@@ -57,4 +57,23 @@ describe('App shell', () => {
     fireEvent.click(screen.getByTestId('brand-link'));
     expect(screen.queryByTestId('hotel-detail')).not.toBeInTheDocument();
   });
+
+  it('renders a search field in the top bar', () => {
+    render(<App />);
+    expect(screen.getByTestId('top-search-input')).toBeInTheDocument();
+  });
+
+  it('updates the property count when the top search term filters results', () => {
+    render(<App />);
+    const countBadge = screen.getByTestId('property-count');
+    // Sanity: starting count is non-zero.
+    expect(countBadge.textContent).toMatch(/[1-9]\d* propert/);
+    fireEvent.change(screen.getByTestId('top-search-input'), {
+      target: { value: 'zzzz-no-such-hotel' },
+    });
+    expect(screen.getByTestId('property-count').textContent).toMatch(/^0 propert/);
+    // Clearing via the clear button restores the full list.
+    fireEvent.click(screen.getByTestId('top-search-clear'));
+    expect(screen.getByTestId('property-count').textContent).toMatch(/[1-9]\d* propert/);
+  });
 });

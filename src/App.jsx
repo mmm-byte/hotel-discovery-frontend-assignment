@@ -34,7 +34,7 @@ export default function App() {
 
   return (
     <div className="app-shell" data-testid="app-shell">
-      {/* -------- Sticky header -------- */}
+      {/* -------- Sticky header with top search bar -------- */}
       <header className="app-header" role="banner">
         <div className="container app-header__inner">
           <a
@@ -54,9 +54,37 @@ export default function App() {
             </svg>
             <span className="app-brand__word">Staylume</span>
           </a>
+
+          {/* Top search bar — lives in the header so it's always reachable */}
+          <form
+            className="top-search"
+            role="search"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <span className="top-search__icon" aria-hidden="true">🔍</span>
+            <input
+              type="search"
+              className="top-search__input"
+              placeholder="Search hotels, cities, or keywords…"
+              aria-label="Search hotels"
+              value={filters.search || ''}
+              onChange={(event) => setFilters({ search: event.target.value })}
+              data-testid="top-search-input"
+            />
+            {filters.search && (
+              <button
+                type="button"
+                className="top-search__clear"
+                onClick={() => setFilters({ search: '' })}
+                aria-label="Clear search"
+                data-testid="top-search-clear"
+              >×</button>
+            )}
+          </form>
+
           <span className="spacer" />
-          <span className="badge badge--info" aria-live="polite">
-            {hotels.length} {hotels.length === 1 ? 'property' : 'properties'} to discover
+          <span className="badge badge--info" aria-live="polite" data-testid="property-count">
+            {filtered.length} {filtered.length === 1 ? 'property' : 'properties'} to discover
           </span>
         </div>
       </header>
@@ -82,6 +110,9 @@ export default function App() {
               onChangeFilter={setFilters}
               onReset={resetFilters}
               onSelect={selectHotel}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              onChangeDates={setDates}
             />
           )}
         </div>

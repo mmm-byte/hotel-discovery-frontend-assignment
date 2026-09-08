@@ -152,6 +152,143 @@ a:hover { color: var(--c-accent); }
   -webkit-text-fill-color: transparent;
 }
 
+/* ---------- Top search bar (in header) ----------------------------------- */
+.top-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill);
+  padding: 4px var(--sp-3);
+  flex: 1;
+  max-width: 520px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.top-search:focus-within {
+  border-color: var(--c-accent);
+  background: var(--c-bg);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+.top-search__icon {
+  font-size: var(--fs-base);
+  color: var(--c-text-subtle);
+}
+.top-search__input {
+  border: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2);
+  font-size: var(--fs-sm);
+  outline: none;
+}
+.top-search__clear {
+  background: var(--c-bg-muted);
+  border: 0;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-text-muted);
+  font-size: var(--fs-base);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.top-search__clear:hover { background: var(--c-border); color: var(--c-text); }
+@media (max-width: 720px) {
+  .top-search { max-width: none; }
+}
+
+/* ---------- Dashboard date filter (inside the filter panel) -------------- */
+.dashboard-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-4);
+}
+.dashboard-dates__icon { font-size: var(--fs-xl); }
+.dashboard-dates__inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  flex: 1;
+  flex-wrap: wrap;
+}
+.dashboard-dates__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+.dashboard-dates__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-text-muted);
+}
+.dashboard-dates__field .field__control { min-height: 36px; padding: var(--sp-2) var(--sp-3); }
+.dashboard-dates__sep {
+  color: var(--c-text-subtle);
+  font-weight: 700;
+  padding-bottom: 8px;
+}
+.dashboard-dates__nights {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--c-accent);
+  padding-bottom: 8px;
+}
+
+/* ---------- Recommended-dates panel (on the empty state) ----------------- */
+.recommended-dates {
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  text-align: left;
+  max-width: 520px;
+  margin-inline: auto;
+}
+.recommended-dates__title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-muted);
+  text-align: center;
+}
+.recommended-dates__list {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.recommended-dates__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--c-bg);
+  border: 1px solid var(--c-accent);
+  color: var(--c-accent-hover);
+  border-radius: var(--r-pill);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, transform 0.05s;
+}
+.recommended-dates__chip:hover { background: var(--c-accent); color: #fff; }
+.recommended-dates__chip:active { transform: scale(0.97); }
+
 /* ---------- Footer ---------------------------------------------------------- */
 .app-footer {
   margin-top: var(--sp-12);

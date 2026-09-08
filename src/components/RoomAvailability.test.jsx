@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import RoomAvailability from './RoomAvailability';
 
 // Compute future dates relative to "now" so the test never breaks.
@@ -51,6 +51,18 @@ const emptyHotel = {
   ...sampleHotel,
   id: 'h-empty',
   rooms: sampleHotel.rooms.map((r) => ({ ...r, available_dates: [] })),
+};
+
+// Hotel with a run of consecutive available nights so the recommended-dates
+// panel can find a real suggestion window to display.
+const hotelWithFuture = {
+  ...sampleHotel,
+  id: 'h-future',
+  rooms: [
+    { room_id: 'rf1', type: 'Standard King', bed_type: 'King', bed_count: 1, max_occupancy: 2,
+      square_footage: 300, price_per_night: 200, room_amenities: [],
+      available_dates: [futureDate(100), futureDate(101), futureDate(102)] },
+  ],
 };
 
 describe('RoomAvailability', () => {
@@ -162,5 +174,27 @@ describe('RoomAvailability', () => {
       />
     );
     expect(screen.getAllByTestId('select-room').length).toBeGreaterThan(0);
+  });
+
+  it('shows recommended-date chips in the "no rooms for these dates" empty state', () => {
+    const onChangeDates = vi.fn();
+    render(
+      <RoomAvailability
+        hotel={hotelWithFuture}
+        checkIn={futureDate(0)} checkOut={futureDate(2)}
+        onChangeDates={onChangeDates}
+      />
+    );
+    const panel = screen.getByTestId('recommended-dates');
+    expect(panel).toBeInTheDocument();
+    const chips = within(panel).getAllByTestId('recommended-window');
+    expect(chips.length).toBeGreaterThan(0);
+    // Clicking a chip propagates a real date pair back to the parent.
+    const first = chips[0];
+    fireEvent.click(first);
+    expect(onChangeDates).toHaveBeenCalledWith({
+      checkIn: first.getAttribute('data-checkin'),
+      checkOut: first.getAttribute('data-checkout'),
+    });
   });
 });

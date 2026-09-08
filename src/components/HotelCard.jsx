@@ -39,6 +39,7 @@ import {
   ratingTier,
   cheapestRoomPrice,
   hotelHasNoRooms,
+  hotelHasRoomsFor,
   cancellationBadge,
 } from '../store/useHotels';
 import { cardImageUrl, cityGradient } from '../assets/images';
@@ -60,7 +61,7 @@ function StarRow({ count }) {
  * The HotelCard component. Pure presentation — no internal state except the
  * image-error fallback (which is a one-way switch).
  */
-export default function HotelCard({ hotel, onSelect }) {
+export default function HotelCard({ hotel, onSelect, checkIn = '', checkOut = '' }) {
   // Hooks must come before any early return. The image-error state is safe to
   // declare even when `hotel` is null; we just don't render anything below.
   const [imgFailed, setImgFailed] = useState(false);
@@ -71,6 +72,9 @@ export default function HotelCard({ hotel, onSelect }) {
   const fromPrice = cheapestRoomPrice(hotel);
   const tier = ratingTier(hotel.overall_rating);
   const noRooms = hotelHasNoRooms(hotel);
+  // When the user has picked dashboard-level dates and this hotel can't
+  // accommodate the stay, we dim the card and change the CTA.
+  const noRoomsForDates = !noRooms && checkIn && checkOut && !hotelHasRoomsFor(hotel, checkIn, checkOut);
   const cancel = cancellationBadge(hotel.policies?.cancellation);
 
   // Pre-compute the image URL + gradient fallback so the media always has a
@@ -85,7 +89,11 @@ export default function HotelCard({ hotel, onSelect }) {
     }
   };
 
-  const className = `hotel-card ${noRooms ? 'hotel-card--sold-out' : ''}`;
+  const className = `hotel-card ${(noRooms || noRoomsForDates) ? 'hotel-card--sold-out' : ''}`;
+  const badgeText = noRooms ? 'No rooms' : (noRoomsForDates ? 'No rooms for your dates' : null);
+  // CTA text is selected inline below using the same predicate, so we keep
+  // this expression here for readability of the next-line ternary.
+  const ctaLabel = (noRooms || noRoomsForDates) ? 'View property' : 'View details';
 
   return (
     <article
@@ -114,8 +122,8 @@ export default function HotelCard({ hotel, onSelect }) {
             onError={() => setImgFailed(true)}
           />
         ) : null}
-        {noRooms && (
-          <span className="hotel-card__badge hotel-card__badge--warn">No rooms</span>
+        {badgeText && (
+          <span className="hotel-card__badge hotel-card__badge--warn" data-testid="no-rooms-badge">{badgeText}</span>
         )}
       </div>
 
@@ -165,7 +173,7 @@ export default function HotelCard({ hotel, onSelect }) {
               onSelect?.(hotel);
             }}
           >
-            {noRooms ? 'View property' : 'View details'} →
+            {ctaLabel} →
           </button>
         </div>
       </div>
