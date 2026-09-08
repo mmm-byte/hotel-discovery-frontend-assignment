@@ -181,22 +181,39 @@ export function reviewSummary(hotel) {
   if (!hotel) return null;
   const overall = Number(hotel.overall_rating) || 0;
   const total = Number(hotel.review_count) || 0;
-  // Real reviews breakdown (out of 10).
-  const excellent = total === 0 ? 0 : Math.round(total * clamp((overall - 4.0) / 1.0, 0.05, 0.95));
-  const good      = Math.max(0, Math.round(total * 0.12));
-  const okay      = Math.max(0, Math.round(total * 0.06));
-  const poor      = Math.max(0, total - excellent - good - okay);
+  if (total === 0) {
+    return {
+      overall: Number(overall.toFixed(1)),
+      total: 0,
+      label: overall >= 4.7 ? 'Exceptional' :
+             overall >= 4.5 ? 'Excellent' :
+             overall >= 4.0 ? 'Very good' :
+             overall >= 3.5 ? 'Good' : 'Review score',
+      breakdown: [
+        { kind: 'excellent', label: 'Excellent', count: 0 },
+        { kind: 'good',      label: 'Good',      count: 0 },
+        { kind: 'okay',      label: 'Okay',      count: 0 },
+        { kind: 'poor',      label: 'Poor',      count: 0 },
+      ],
+    };
+  }
+  // Distribute reviews so the parts always sum exactly to `total`.
+  const excellent = Math.round(total * clamp((overall - 4.0) / 1.0, 0.05, 0.95));
+  const good      = Math.round(total * 0.12);
+  const okay      = Math.round(total * 0.06);
+  const poor      = Math.max(0, total - excellent - good - okay); // last = remainder
   return {
     overall: Number(overall.toFixed(1)),
     total,
-    label: overall >= 9 ? 'Wonderful' :
-           overall >= 8 ? 'Very good' :
-           overall >= 7 ? 'Good' : 'Review score',
+    label: overall >= 4.7 ? 'Exceptional' :
+           overall >= 4.5 ? 'Excellent' :
+           overall >= 4.0 ? 'Very good' :
+           overall >= 3.5 ? 'Good' : 'Review score',
     breakdown: [
-      { kind: 'excellent', label: 'Excellent',  count: excellent },
-      { kind: 'good',      label: 'Good',       count: good },
-      { kind: 'okay',      label: 'Okay',       count: okay },
-      { kind: 'poor',      label: 'Poor',       count: poor },
+      { kind: 'excellent', label: 'Excellent', count: excellent },
+      { kind: 'good',      label: 'Good',      count: good },
+      { kind: 'okay',      label: 'Okay',      count: okay },
+      { kind: 'poor',      label: 'Poor',      count: poor },
     ],
   };
 }
@@ -367,30 +384,42 @@ export function filterHotels(hotels, {
  */
 export function sortHotels(hotels, sort = 'recommended') {
   const arr = hotels.slice();
-  switch (sort) {
-    case 'price-asc':
-      arr.sort((a, b) => (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity));
-      break;
-    case 'price-desc':
-      arr.sort((a, b) => (cheapestRoomPrice(b) ?? -Infinity) - (cheapestRoomPrice(a) ?? -Infinity));
-      break;
-    case 'rating-desc':
-      arr.sort((a, b) => Number(b.overall_rating || 0) - Number(a.overall_rating || 0));
-      break;
-    case 'stars-desc':
-      arr.sort((a, b) => Number(b.star_rating || 0) - Number(a.star_rating || 0));
-      break;
-    case 'recommended':
-    default:
-      arr.sort((a, b) => {
+  arr.sort((a, b) => {
+    const aNoRooms = hotelHasNoRooms(a);
+    const bNoRooms = hotelHasNoRooms(b);
+
+    // Primary sort: by the requested criterion.
+    let primary;
+    switch (sort) {
+      case 'price-asc':
+        primary = (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity);
+        break;
+      case 'price-desc':
+        primary = (cheapestRoomPrice(b) ?? -Infinity) - (cheapestRoomPrice(a) ?? -Infinity);
+        break;
+      case 'rating-desc':
+        primary = Number(b.overall_rating || 0) - Number(a.overall_rating || 0);
+        break;
+      case 'stars-desc':
+        primary = Number(b.star_rating || 0) - Number(a.star_rating || 0);
+        break;
+      case 'recommended':
+      default: {
         const r = Number(b.overall_rating || 0) - Number(a.overall_rating || 0);
-        if (r !== 0) return r;
-        const p = (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity);
-        if (p !== 0) return p;
-        return Number(b.review_count || 0) - Number(a.review_count || 0);
-      });
-      break;
-  }
+        if (r !== 0) primary = r;
+        else {
+          const p = (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity);
+          primary = p !== 0 ? p : Number(b.review_count || 0) - Number(a.review_count || 0);
+        }
+        break;
+      }
+    }
+    if (primary !== 0) return primary;
+
+    // Tie-break: sold-out hotels sink below hotels with rooms available.
+    if (aNoRooms !== bNoRooms) return aNoRooms ? 1 : -1;
+    return 0;
+  });
   return arr;
 }
 
@@ -491,15 +520,19 @@ export function availableRooms(hotel, checkIn, checkOut) {
 /**
  * Find the next N available date windows for a hotel starting at or after
  * `fromIso`. A "window" is a [checkIn, checkOut) range of `nights` length
- * where at least one room can cover every night.
+ * where AT LEAST ONE room can cover every night in that range.
  *
  * Algorithm:
- *   1. Collect every individual date the hotel has ANY room available for.
- *   2. Walk forward day-by-day from `fromIso`, looking for the first run of
- *      `nights` consecutive available dates.
- *   3. After finding a window, jump ahead by `nights + 1` days so the next
- *      suggestion is meaningfully separated.
- *   4. Return up to `maxWindows` results, each as { checkIn, checkOut, label }.
+ *   1. For each candidate start day, check EVERY room and pick the cheapest
+ *      one that can cover the whole window (so the suggestion is bookable).
+ *   2. After finding a window, advance the cursor past it so suggestions are
+ *      meaningfully separated (no overlap with previous suggestion).
+ *   3. Return up to `maxWindows` results, each as { checkIn, checkOut, label,
+ *      roomId, price } so the UI can show "from $X/night" if it wants.
+ *
+ * Per-room correctness: a suggestion is only included if some single room
+ * covers every night. The old version took the union of dates across all
+ * rooms, which could suggest dates that no single room can cover.
  *
  * The label is a human-readable summary like "Aug 14 → Aug 17" so the UI can
  * render suggestions without re-parsing ISO strings.
@@ -510,44 +543,56 @@ export function recommendDateWindows(hotel, fromIso, nights = 2, maxWindows = 3)
   const start = fromISODate(fromIso);
   if (!start) return [];
 
-  // Build a set of all available dates across all rooms.
-  const allDates = new Set();
-  for (const room of hotel.rooms) {
-    for (const d of room.available_dates || []) allDates.add(d);
-  }
-  if (allDates.size === 0) return [];
+  /**
+   * Given a candidate start ISO, return the cheapest room whose
+   * available_dates cover [start, start+nights). Returns null if none cover it.
+   */
+  const roomForWindow = (startIso) => {
+    const startD = fromISODate(startIso);
+    if (!startD) return null;
+    const nightsIso = [];
+    const probe = new Date(startD);
+    for (let i = 0; i < nights; i++) {
+      nightsIso.push(toISODate(probe));
+      probe.setUTCDate(probe.getUTCDate() + 1);
+    }
+    let best = null;
+    for (const room of hotel.rooms) {
+      if (!Array.isArray(room.available_dates) || room.available_dates.length === 0) continue;
+      const have = new Set(room.available_dates);
+      if (!nightsIso.every((n) => have.has(n))) continue;
+      const price = Number(room.price_per_night) || Infinity;
+      if (best == null || price < best.price) {
+        best = { roomId: room.room_id, price, type: room.type };
+      }
+    }
+    return best;
+  };
 
-  // We walk up to 365 days ahead — plenty for any real inventory.
+  // Walk up to 365 days ahead — plenty for any real inventory.
   const OUT = [];
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const cursor = new Date(start);
   for (let day = 0; day < 365 && OUT.length < maxWindows; day++) {
     const isoDay = toISODate(cursor);
-    if (allDates.has(isoDay)) {
-      // Found a candidate start — check that the next `nights - 1` days
-      // are all in the available set.
-      let ok = true;
-      const probe = new Date(cursor);
-      for (let i = 0; i < nights; i++) {
-        if (!allDates.has(toISODate(probe))) { ok = false; break; }
-        probe.setUTCDate(probe.getUTCDate() + 1);
-      }
-      if (ok) {
-        const checkInIso = isoDay;
-        const checkOutIso = toISODate(probe);
-        OUT.push({
-          checkIn: checkInIso,
-          checkOut: checkOutIso,
-          label: `${formatHumanDate(checkInIso)} → ${formatHumanDate(checkOutIso)}`,
-        });
-        // Skip past this window so suggestions are spread out.
-        cursor.setUTCDate(cursor.getUTCDate() + nights + 1);
-        continue;
-      }
+    const picked = roomForWindow(isoDay);
+    if (picked) {
+      const checkInIso = isoDay;
+      const endD = new Date(cursor);
+      endD.setUTCDate(endD.getUTCDate() + nights);
+      const checkOutIso = toISODate(endD);
+      OUT.push({
+        checkIn: checkInIso,
+        checkOut: checkOutIso,
+        label: `${formatHumanDate(checkInIso)} → ${formatHumanDate(checkOutIso)}`,
+        roomId: picked.roomId,
+        price: picked.price,
+        roomType: picked.type,
+      });
+      // Skip past this window so suggestions are spread out.
+      cursor.setUTCDate(cursor.getUTCDate() + nights);
+      continue;
     }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
-    // (also keep `cursor` advancing — handled at the bottom of the loop)
-    void ONE_DAY_MS;
   }
   return OUT;
 }

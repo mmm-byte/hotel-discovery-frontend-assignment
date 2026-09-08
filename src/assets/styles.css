@@ -206,19 +206,20 @@ a:hover { color: var(--c-accent); }
 .dashboard-dates {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   background: var(--c-bg-subtle);
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
   flex-wrap: wrap;
   margin-top: var(--sp-4);
+  flex: 1;
 }
-.dashboard-dates__icon { font-size: var(--fs-xl); }
+.dashboard-dates__icon { font-size: var(--fs-base); }
 .dashboard-dates__inputs {
   display: flex;
   align-items: flex-end;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   flex: 1;
   flex-wrap: wrap;
 }
@@ -226,7 +227,8 @@ a:hover { color: var(--c-accent); }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 130px;
+  flex: 1;
+  min-width: 110px;
 }
 .dashboard-dates__label {
   font-size: var(--fs-xs);
@@ -235,17 +237,17 @@ a:hover { color: var(--c-accent); }
   letter-spacing: 0.04em;
   color: var(--c-text-muted);
 }
-.dashboard-dates__field .field__control { min-height: 36px; padding: var(--sp-2) var(--sp-3); }
+.dashboard-dates__field .field__control { min-height: 32px; padding: var(--sp-1) var(--sp-2); font-size: var(--fs-sm); width: 100%; }
 .dashboard-dates__sep {
   color: var(--c-text-subtle);
   font-weight: 700;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 .dashboard-dates__nights {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--c-accent);
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 
 /* ---------- Recommended-dates panel (on the empty state) ----------------- */
@@ -428,7 +430,6 @@ a:hover { color: var(--c-accent); }
 }
 @media (min-width: 640px) { .filter-bar__grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 900px) { .filter-bar__grid { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 1100px) { .filter-bar__grid { grid-template-columns: repeat(3, 1fr); } }
 
 .field { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .field__label {
@@ -704,6 +705,7 @@ a:hover { color: var(--c-accent); }
   font-weight: 600;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-pill);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 .hotel-card__badge--warn { background: rgba(180, 83, 9, 0.92); }
@@ -843,10 +845,10 @@ a:hover { color: var(--c-accent); }
   position: absolute;
   inset: auto 0 0 0;
   z-index: 2;
-  padding: var(--sp-6) var(--sp-8) var(--sp-7);
+  padding: var(--sp-8) var(--sp-8) var(--sp-10);
   color: #fff;
   display: grid;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
 }
 .detail-hero__breadcrumb {
@@ -859,6 +861,7 @@ a:hover { color: var(--c-accent); }
 }
 .detail-hero__back {
   background: rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(6px);
   color: #fff;
@@ -875,8 +878,8 @@ a:hover { color: var(--c-accent); }
 .detail-hero__title {
   font-size: clamp(1.8rem, 4vw, 2.75rem);
   font-weight: 800;
-  margin: 0;
-  line-height: 1.05;
+  margin: var(--sp-2) 0 var(--sp-3) 0;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   max-width: 760px;
 }
@@ -891,6 +894,7 @@ a:hover { color: var(--c-accent); }
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  -webkit-backdrop-filter: blur(6px);
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.25);
   backdrop-filter: blur(6px);
@@ -913,6 +917,7 @@ a:hover { color: var(--c-accent); }
 .hero-action {
   display: inline-flex;
   align-items: center;
+  -webkit-backdrop-filter: blur(8px);
   gap: var(--sp-2);
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -988,8 +993,8 @@ a:hover { color: var(--c-accent); }
 .detail-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: var(--sp-7);
-  padding: var(--sp-6) 0 var(--sp-10);
+  gap: var(--sp-8);
+  padding: var(--sp-8) 0 var(--sp-12);
   align-items: start;
 }
 .detail-body__main { display: grid; gap: var(--sp-8); min-width: 0; }
@@ -997,11 +1002,12 @@ a:hover { color: var(--c-accent); }
   .detail-body { grid-template-columns: 1fr; gap: var(--sp-6); }
 }
 
-.detail-section { display: grid; gap: var(--sp-4); }
+.detail-section { display: grid; gap: var(--sp-6); }
 .detail-section__head {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-2);
 }
 .detail-section h2 {
   font-size: var(--fs-2xl);
@@ -1220,14 +1226,14 @@ a:hover { color: var(--c-accent); }
 /* ---------- Contact row (multi-item card style) ------------------------- */
 .contact-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--sp-4);
 }
 .contact-item {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
   background: var(--c-bg-subtle);
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
@@ -1241,8 +1247,8 @@ a:hover { color: var(--c-accent); }
 }
 .contact-item__icon {
   font-size: 1.25rem;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1263,14 +1269,14 @@ a:hover { color: var(--c-accent); }
 /* ---------- Sticky reserve card (right rail) --------------------------- */
 .reserve-card {
   position: sticky;
-  top: calc(var(--header-h) + var(--booking-bar-h) + var(--sp-4));
+  top: calc(var(--header-h) + var(--booking-bar-h) + var(--sp-6));
   background: var(--c-bg);
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
-  padding: var(--sp-5);
+  padding: var(--sp-6);
   box-shadow: var(--shadow-md);
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-5);
 }
 .reserve-card__price { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; }
 .reserve-card__from {
@@ -1512,4 +1518,55 @@ a:hover { color: var(--c-accent); }
 @keyframes skeleton-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ---------- Date suggestions hint (below picker) ------------------------- */
+.date-picker-container {
+  display: grid;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-6);
+}
+.recommended-dates-hint {
+  padding: var(--sp-4);
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+}
+.recommended-dates-hint__title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text-subtle);
+}
+.recommended-dates-hint__list {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.recommended-dates-hint__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  border-radius: var(--r-pill);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.recommended-dates-hint__chip:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+.recommended-dates-hint__icon {
+  font-size: 1rem;
+}
+.recommended-dates-hint__label {
+  line-height: 1;
 }

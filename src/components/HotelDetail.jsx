@@ -234,6 +234,17 @@ function ReserveCard({ fromPrice, checkIn, checkOut }) {
           total for {nights.length} {nights.length === 1 ? 'night' : 'nights'}
         </p>
       )}
+      {hasDates && (
+        <div className="reserve-card__dates">
+          <span data-testid="reserve-checkin">
+            {formatHumanDate(checkIn)}
+          </span>
+          <span aria-hidden="true"> → </span>
+          <span data-testid="reserve-checkout">
+            {formatHumanDate(checkOut)}
+          </span>
+        </div>
+      )}
 
       <a
         href="#availability"
@@ -296,6 +307,16 @@ export default function HotelDetail({ hotel, onBack, checkIn, checkOut, onChange
               className="btn btn--ghost btn--sm booking-bar__back"
               onClick={onBack}
               data-testid="back-button"
+              aria-label="Back to all hotels"
+            >
+              ← All hotels
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm detail-hero__back"
+              onClick={onBack}
+              data-testid="hero-back-button"
+              aria-label="Back to all hotels"
             >
               ← All hotels
             </button>

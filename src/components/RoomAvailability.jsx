@@ -68,13 +68,13 @@ function startOfMonth(year, month) {
  * Returns an array of { iso, day, inMonth } entries; inMonth=false means a
  * leading/trailing day from the neighbouring month (greyed out in the UI).
  */
-function monthGrid(year, month) {
+function monthGrid(year, month, firstWeekday = 1) {
   const first = startOfMonth(year, month);
-  // Week starts Monday (1) to match most international hotel sites.
-  // Shift Sunday (0) back one day so the grid starts on Monday.
-  const firstWeekday = (first.getUTCDay() + 6) % 7;
+  // Shift so the first cell of the grid is the locale's first weekday.
+  // (firstWeekday: 0 = Sunday, 1 = Monday, …)
+  const offset = (first.getUTCDay() - firstWeekday + 7) % 7;
   const start = new Date(first);
-  start.setUTCDate(1 - firstWeekday);
+  start.setUTCDate(1 - offset);
   const cells = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(start);
@@ -93,7 +93,64 @@ const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/**
+ * Format a month label ("September 2026") using the user's locale.
+ * Falls back to the English MONTH_NAMES array on any Intl failure.
+ */
+function monthLabel(year, month, locale) {
+  try {
+    const fmt = new Intl.DateTimeFormat(locale, {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+    return fmt.format(new Date(Date.UTC(year, month, 1)));
+  } catch {
+    return `${MONTH_NAMES[month]} ${year}`;
+  }
+}
+
+/**
+ * Locale-aware day-of-week header labels.
+ *
+ * Uses `Intl.DateTimeFormat` to derive:
+ *   - the user's locale (falls back to 'en-US')
+ *   - the locale's first day of the week (e.g. Sunday in en-US, Monday in
+ *     en-GB, fr-FR, de-DE, etc.)
+ *   - 3-letter short names like "Mon", "Tue", …
+ *
+ * This makes the calendar adapt automatically: a French user sees a calendar
+ * starting on Monday; an American user sees one starting on Sunday. The
+ * grid below also re-aligns via the `firstWeekday` value returned here.
+ */
+function resolveLocaleInfo() {
+  const locale = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
+  let firstWeekday = 1; // Mon default
+  let dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  try {
+    const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+    // Probe a 7-day span starting on a known Sunday so we can read the
+    // ordered short names back from the formatter.
+    const probe = new Date(Date.UTC(2024, 0, 7)); // Sunday
+    const ordered = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(probe);
+      d.setUTCDate(probe.getUTCDate() + i);
+      ordered.push(fmt.format(d));
+    }
+    dayNames = ordered;
+    // Detect first day of week by formatting a known Sunday and seeing where
+    // its short name appears in the ordered list above.
+    const sundayShort = fmt.format(new Date(Date.UTC(2024, 0, 7)));
+    firstWeekday = ordered.indexOf(sundayShort); // 0 if week starts on Sunday
+  } catch {
+    // keep defaults on any Intl failure
+  }
+  return { locale, firstWeekday, dayNames };
+}
+
+const LOCALE_INFO = resolveLocaleInfo();
 
 // ----------------------------------------------------------------------------
 // Custom calendar — two months side-by-side, range selection, prev/next nav.
@@ -121,10 +178,10 @@ function DateRangePicker({ checkIn, checkOut, onChangeDates, minIso }) {
   const [pendingIn, setPendingIn] = useState(checkIn);
   useEffect(() => { setPendingIn(checkIn); }, [checkIn]);
   const months = useMemo(() => {
-    const a = monthGrid(anchor.getUTCFullYear(), anchor.getUTCMonth());
+    const a = monthGrid(anchor.getUTCFullYear(), anchor.getUTCMonth(), LOCALE_INFO.firstWeekday);
     const bMonth = anchor.getUTCMonth() + 1;
     const bYear = anchor.getUTCFullYear() + Math.floor(bMonth / 12);
-    const b = monthGrid(bYear, bMonth % 12);
+    const b = monthGrid(bYear, bMonth % 12, LOCALE_INFO.firstWeekday);
     return [
       { year: anchor.getUTCFullYear(), month: anchor.getUTCMonth(), cells: a },
       { year: bYear, month: bMonth % 12, cells: b },
@@ -233,10 +290,10 @@ function DateRangePicker({ checkIn, checkOut, onChangeDates, minIso }) {
         {months.map((m, idx) => (
           <div key={idx} className="cal">
             <h4 className="cal__title">
-              {MONTH_NAMES[m.month]} {m.year}
+              {monthLabel(m.year, m.month, LOCALE_INFO.locale)}
             </h4>
             <div className="cal__weekdays" aria-hidden="true">
-              {DAY_NAMES.map((d) => (
+              {LOCALE_INFO.dayNames.map((d) => (
                 <span key={d} className="cal__weekday">{d}</span>
               ))}
             </div>

@@ -29,7 +29,6 @@ export default function App() {
     checkIn,
     checkOut,
     setDates,
-    meta,
   } = useHotels();
 
   return (
@@ -103,7 +102,6 @@ export default function App() {
               filtered={filtered}
               filters={filters}
               defaultFilters={defaultFilters}
-              meta={meta}
               onChangeFilter={setFilters}
               onReset={resetFilters}
               onSelect={selectHotel}

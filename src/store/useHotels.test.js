@@ -474,7 +474,7 @@ describe('reviewSummary', () => {
     expect(out.total).toBe(100);
     const sum = out.breakdown.reduce((s, b) => s + b.count, 0);
     expect(sum).toBe(100);
-    expect(out.label).toMatch(/Wonderful|Very good|Good|Review score/);
+    expect(out.label).toMatch(/Exceptional|Excellent|Very good|Good|Review score/);
   });
   it('returns null for an invalid hotel', () => {
     expect(reviewSummary(null)).toBeNull();
