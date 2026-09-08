@@ -56,7 +56,7 @@ export default function App() {
           </a>
           <span className="spacer" />
           <span className="badge badge--info" aria-live="polite">
-            {hotels.length} properties · {meta.CITIES.length} cities
+            {hotels.length} {hotels.length === 1 ? 'property' : 'properties'} to discover
           </span>
         </div>
       </header>

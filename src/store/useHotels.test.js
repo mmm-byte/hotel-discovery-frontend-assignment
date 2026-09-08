@@ -161,14 +161,14 @@ describe('filterHotels — city', () => {
 });
 
 describe('filterHotels — star rating', () => {
-  it('single value', () => {
-    expect(filterHotels(sample, { stars: 5 }).map((h) => h.id)).toEqual(['b']);
+  it('keeps only hotels at or above the chosen star rating', () => {
+    // sample: a=3★, b=5★, c=2★. minStars=4 → only b. minStars=3 → a, b.
+    expect(filterHotels(sample, { minStars: 4 }).map((h) => h.id)).toEqual(['b']);
+    expect(filterHotels(sample, { minStars: 3 }).map((h) => h.id).sort()).toEqual(['a', 'b']);
+    expect(filterHotels(sample, { minStars: 2 }).map((h) => h.id).sort()).toEqual(['a', 'b', 'c']);
   });
-  it('array of ratings', () => {
-    expect(filterHotels(sample, { stars: [2, 5] }).map((h) => h.id).sort()).toEqual(['b', 'c']);
-  });
-  it('null means any', () => {
-    expect(filterHotels(sample, { stars: null }).length).toBe(3);
+  it('null means any star rating', () => {
+    expect(filterHotels(sample, { minStars: null }).length).toBe(3);
   });
 });
 
@@ -246,7 +246,7 @@ describe('filterHotels — sort', () => {
 
 describe('filterHotels — combined', () => {
   it('ANDs all criteria', () => {
-    const out = filterHotels(sample, { city: 'Austin', stars: 3, minPrice: 100, maxPrice: 200, freeCancel: true });
+    const out = filterHotels(sample, { city: 'Austin', minStars: 3, minPrice: 100, maxPrice: 200, freeCancel: true });
     expect(out.map((h) => h.id)).toEqual(['a']);
   });
 });
@@ -278,12 +278,12 @@ describe('sortHotels', () => {
 // activeFilterCount
 // ----------------------------------------------------------------------------
 describe('activeFilterCount', () => {
-  const defaults = { city: '', stars: null, minRating: null, freeCancel: false, amenities: [], sort: 'recommended' };
+  const defaults = { city: '', minStars: null, minRating: null, freeCancel: false, amenities: [], sort: 'recommended' };
   it('zero when filters equal defaults', () => {
     expect(activeFilterCount(defaults, defaults)).toBe(0);
   });
   it('counts each non-default field', () => {
-    expect(activeFilterCount({ ...defaults, city: 'Paris', stars: 5 }, defaults)).toBe(2);
+    expect(activeFilterCount({ ...defaults, city: 'Paris', minStars: 4 }, defaults)).toBe(2);
   });
   it('counts amenity arrays of different length', () => {
     expect(activeFilterCount({ ...defaults, amenities: ['pool'] }, defaults)).toBe(1);

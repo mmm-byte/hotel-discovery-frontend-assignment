@@ -50,53 +50,120 @@ function Chip({ active, onClick, children, 'data-testid': testId, ...rest }) {
 }
 
 /**
- * A dual-handle price slider. Two stacked <input type="range"> elements
- * with z-index trickery so both handles are visible and draggable.
+ * The classic Booking.com / Expedia star-rating selector.
+ *
+ * Renders 5 large gold star buttons. Clicking the Nth star sets the filter to
+ * "N stars and up" (e.g. clicking 3 keeps hotels with 3, 4, or 5 stars). The
+ * currently-active star plus all lower stars are highlighted in gold; the
+ * remaining ones are muted. Clicking the same active star clears the filter
+ * (back to "all stars"). The selected value is also echoed as a text label
+ * so the current state is obvious at a glance.
+ *
+ *   minStars === null  →  "All stars"        (nothing highlighted)
+ *   minStars === 3     →  "3 stars & up"     (3, 4, 5 highlighted)
  */
-function PriceSlider({ min, max, minValue, maxValue, onChange }) {
-  // Clamp helpers — keep the two handles from crossing.
+function StarSelector({ value, onChange, max = 5, testIdPrefix = 'filter-stars' }) {
+  const handleClick = (n) => {
+    // Toggle: clicking the active star clears the filter.
+    onChange(value === n ? null : n);
+  };
+  return (
+    <div className="star-selector" role="radiogroup" aria-label="Minimum star rating" data-testid={`${testIdPrefix}-selector`}>
+      {Array.from({ length: max }, (_, i) => i + 1).map((n) => {
+        const isActive = value != null && n <= value;
+        return (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            className={`star-selector__star ${isActive ? 'star-selector__star--active' : ''}`}
+            onClick={() => handleClick(n)}
+            data-testid={`${testIdPrefix}-${n}`}
+          >
+            ★
+          </button>
+        );
+      })}
+      <span className="star-selector__label" data-testid={`${testIdPrefix}-label`}>
+        {value == null ? 'All stars' : `${value} stars & up`}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * A generic dual-handle range slider used for both price and star-rating.
+ *
+ * The component renders two stacked <input type="range"> elements with
+ * z-index/pointer-events trickery so both thumbs are draggable. The thumbs
+ * are clamped to never cross each other.
+ *
+ * Props:
+ *   - min, max:   the absolute bounds (e.g. 1-5 for stars, 75-590 for price).
+ *   - step:       snap step (default 1).
+ *   - minValue, maxValue: the current range.
+ *   - onChange({ min, max }): invoked on every drag tick.
+ *   - format(v):  pretty-print the value for the label (default: v).
+ *   - testIdPrefix: prefix for data-testid on inputs (e.g. "filter-price").
+ *   - theme:      'price' (default) or 'gold' for star ratings.
+ *   - minLabel / maxLabel: suffix appended to the right-side label (e.g. '+').
+ */
+function DualSlider({
+  min, max, step = 1,
+  minValue, maxValue,
+  onChange,
+  format = (v) => v,
+  testIdPrefix,
+  theme = 'price',
+  minSuffix = '',
+  maxSuffix = '',
+}) {
   const updateMin = (v) => {
     const n = Math.min(Number(v), maxValue);
-    onChange({ minPrice: n });
+    onChange({ min: n, max: maxValue });
   };
   const updateMax = (v) => {
     const n = Math.max(Number(v), minValue);
-    onChange({ maxPrice: n });
+    onChange({ min: minValue, max: n });
   };
-
-  // The lower thumb needs higher z-index when it reaches the max so it
-  // remains draggable. We approximate with a constant; good enough for UX.
+  const range = max - min || 1;
   return (
-    <div className="slider" data-testid="price-slider">
+    <div className={`slider slider--${theme}`} data-testid={`${testIdPrefix}-slider`}>
       <div className="slider__track" />
       <div
         className="slider__range"
         style={{
-          left: `${((minValue - min) / (max - min)) * 100}%`,
-          right: `${100 - ((maxValue - min) / (max - min)) * 100}%`,
+          left: `${((minValue - min) / range) * 100}%`,
+          right: `${100 - ((maxValue - min) / range) * 100}%`,
         }}
       />
       <input
         className="slider__input"
         type="range"
-        min={min} max={max} step={5}
+        min={min} max={max} step={step}
         value={minValue}
         onChange={(e) => updateMin(e.target.value)}
-        aria-label="Minimum price"
-        data-testid="filter-min-price"
+        aria-label={`Minimum ${testIdPrefix}`}
+        data-testid={`${testIdPrefix}-min`}
       />
       <input
         className="slider__input"
         type="range"
-        min={min} max={max} step={5}
+        min={min} max={max} step={step}
         value={maxValue}
         onChange={(e) => updateMax(e.target.value)}
-        aria-label="Maximum price"
-        data-testid="filter-max-price"
+        aria-label={`Maximum ${testIdPrefix}`}
+        data-testid={`${testIdPrefix}-max`}
       />
       <div className="slider__labels">
-        <span data-testid="filter-min-price-value">${minValue}</span>
-        <span data-testid="filter-max-price-value">${maxValue}+</span>
+        <span data-testid={`${testIdPrefix}-min-value`}>
+          {format(minValue)}{minSuffix}
+        </span>
+        <span data-testid={`${testIdPrefix}-max-value`}>
+          {format(maxValue)}{maxSuffix}
+        </span>
       </div>
     </div>
   );
@@ -109,7 +176,7 @@ function PriceSlider({ min, max, minValue, maxValue, onChange }) {
 function ActiveFilterChips({ filters, defaults, onRemove, onReset }) {
   const chips = [];
   if (filters.city) chips.push({ key: 'city', label: `City: ${filters.city}` });
-  if (filters.stars != null) chips.push({ key: 'stars', label: `${filters.stars}★+` });
+  if (filters.minStars != null) chips.push({ key: 'minStars', label: `${filters.minStars}★ & up` });
   if (filters.minRating != null) chips.push({ key: 'minRating', label: `Rated ${filters.minRating}+` });
   if (filters.freeCancel) chips.push({ key: 'freeCancel', label: 'Free cancellation' });
   if (filters.amenities && filters.amenities.length > 0) {
@@ -161,7 +228,7 @@ export default function FilterDashboard({
   onReset,
   onSelect,
 }) {
-  const { CITIES, STAR_RATINGS, AMENITIES, BED_TYPES, MIN_PRICE, MAX_PRICE, SORT_OPTIONS } = meta || {};
+  const { CITIES, AMENITIES, BED_TYPES, MIN_PRICE, MAX_PRICE, MAX_STAR, SORT_OPTIONS } = meta || {};
   const activeCount = useMemo(
     () => activeFilterCount(filters, defaultFilters || {}),
     [filters, defaultFilters]
@@ -174,11 +241,11 @@ export default function FilterDashboard({
   // Handlers ---------------------------------------------------------------
   const handleCityChange = (e) => onChangeFilter?.({ city: e.target.value });
   const handleSearchChange = (e) => onChangeFilter?.({ search: e.target.value });
-  const handleStarsToggle = (v) => onChangeFilter?.({ stars: filters.stars === v ? null : v });
+  const handleStarsChange = (n) => onChangeFilter?.({ minStars: n });
   const handleRatingChange = (e) => onChangeFilter?.({ minRating: e.target.value === '' ? null : Number(e.target.value) });
   const handleBedTypeChange = (e) => onChangeFilter?.({ roomBedType: e.target.value || null });
   const handleSortChange = (e) => onChangeFilter?.({ sort: e.target.value });
-  const handlePriceChange = ({ minPrice, maxPrice }) => onChangeFilter?.({ minPrice, maxPrice });
+  const handlePriceChange = ({ min, max }) => onChangeFilter?.({ minPrice: min, maxPrice: max });
   const handleFreeCancelToggle = () => onChangeFilter?.({ freeCancel: !filters.freeCancel });
   const handleAmenityToggle = (amenity) => {
     const have = new Set(filters.amenities || []);
@@ -188,7 +255,7 @@ export default function FilterDashboard({
   const handleRemoveChip = (key) => {
     switch (key) {
       case 'city':         onChangeFilter?.({ city: '' }); break;
-      case 'stars':        onChangeFilter?.({ stars: null }); break;
+      case 'minStars':     onChangeFilter?.({ minStars: null }); break;
       case 'minRating':    onChangeFilter?.({ minRating: null }); break;
       case 'freeCancel':   onChangeFilter?.({ freeCancel: false }); break;
       case 'amenities':    onChangeFilter?.({ amenities: [] }); break;
@@ -208,7 +275,7 @@ export default function FilterDashboard({
         <div className="hero__content">
           <h1 className="hero__title">Find your next stay</h1>
           <p className="hero__subtitle">
-            {hotels.length} hand-picked properties across {CITIES?.length || 10} cities. Prices include taxes &amp; fees.
+            {hotels.length} {hotels.length === 1 ? 'property' : 'properties'} ready to discover. Prices include taxes &amp; fees.
           </p>
         </div>
       </div>
@@ -244,21 +311,14 @@ export default function FilterDashboard({
             </select>
           </label>
 
-          {/* Star rating chips */}
+          {/* Star rating selector — classic Booking.com 5-star clickable row */}
           <div className="field" role="group" aria-labelledby="filter-stars-label">
             <span className="field__label" id="filter-stars-label">Star rating</span>
-            <div className="chip-row">
-              {STAR_RATINGS?.map((s) => (
-                <Chip
-                  key={s}
-                  active={filters.stars === s}
-                  onClick={() => handleStarsToggle(s)}
-                  data-testid={`star-chip-${s}`}
-                >
-                  {'★'.repeat(s)}{' '}{s}★
-                </Chip>
-              ))}
-            </div>
+            <StarSelector
+              value={filters.minStars}
+              onChange={handleStarsChange}
+              max={MAX_STAR}
+            />
           </div>
 
           {/* Guest rating dropdown */}
@@ -326,12 +386,16 @@ export default function FilterDashboard({
           <span className="field__label" id="filter-price-label">
             Price per night · <span style={{ fontWeight: 500, textTransform: 'none', color: 'var(--c-text-muted)' }}>taxes not included</span>
           </span>
-          <PriceSlider
+          <DualSlider
             min={MIN_PRICE}
             max={MAX_PRICE}
+            step={5}
             minValue={filters.minPrice ?? MIN_PRICE}
             maxValue={filters.maxPrice ?? MAX_PRICE}
             onChange={handlePriceChange}
+            format={(v) => `$${v}`}
+            maxSuffix="+"
+            testIdPrefix="filter-price"
           />
         </div>
 

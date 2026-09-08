@@ -36,9 +36,11 @@ describe('App shell', () => {
     expect(screen.getByText(/Find your next stay/i)).toBeInTheDocument();
   });
 
-  it('shows the brand badge with property and city counts', () => {
+  it('shows the property-count badge that adapts to the loaded data', () => {
     render(<App />);
-    expect(screen.getByText(/40 properties · 10 cities/)).toBeInTheDocument();
+    // We don't hard-code the count in the markup — we just assert the badge
+    // is present and contains a number, so the test survives any seed swap.
+    expect(screen.getByText(/\d+ propert(y|ies) to discover/)).toBeInTheDocument();
   });
 
   it('renders the footer with multiple link columns', () => {

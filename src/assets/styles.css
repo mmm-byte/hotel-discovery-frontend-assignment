@@ -404,6 +404,75 @@ a:hover { color: var(--c-accent); }
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Gold-themed star-rating slider ------------------------------ */
+.slider--gold { height: 56px; }
+.slider--gold .slider__track {
+  background: linear-gradient(90deg, var(--c-bg-muted), #f1ead0);
+  height: 6px;
+}
+.slider--gold .slider__range {
+  background: linear-gradient(90deg, #b8860b, #facc15);
+  height: 6px;
+  box-shadow: 0 1px 4px rgba(184, 134, 11, 0.4);
+}
+.slider--gold .slider__input::-webkit-slider-thumb {
+  width: 26px; height: 26px;
+  background: #fff;
+  border: 3px solid var(--c-accent);
+  box-shadow: 0 2px 6px rgba(184, 134, 11, 0.35);
+}
+.slider--gold .slider__input::-moz-range-thumb {
+  width: 26px; height: 26px;
+  background: #fff;
+  border: 3px solid var(--c-accent);
+  box-shadow: 0 2px 6px rgba(184, 134, 11, 0.35);
+}
+.slider--gold .slider__labels {
+  color: var(--c-accent-hover);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Star-rating selector (Booking.com style) --------------------- */
+.star-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.star-selector__star {
+  /* Big clickable star. 32px font-size + line-height:1 makes the hit area
+     a square, easy to click. */
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--c-border-strong);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.1s, transform 0.05s, background 0.1s;
+}
+.star-selector__star:hover { background: var(--c-accent-soft); }
+.star-selector__star:active { transform: scale(0.92); }
+.star-selector__star--active {
+  color: #f5b301;  /* saturated gold, matches real booking sites */
+  text-shadow: 0 1px 0 rgba(184, 134, 11, 0.2);
+}
+.star-selector__label {
+  margin-left: var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Active filter chips -------------------------------------------- */
 .active-chips {
   display: flex;

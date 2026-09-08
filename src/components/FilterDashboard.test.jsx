@@ -39,7 +39,7 @@ const HOTELS = [
 ];
 
 const DEFAULT_FILTERS = {
-  city: '', stars: null, minPrice: 50, maxPrice: 500, search: '',
+  city: '', minStars: null, minPrice: 50, maxPrice: 500, search: '',
   minRating: null, freeCancel: false, amenities: [], roomBedType: null, sort: 'recommended',
 };
 
@@ -93,7 +93,7 @@ describe('FilterDashboard', () => {
     expect(onChange).toHaveBeenCalledWith({ search: 'cozy' });
   });
 
-  it('toggles the star filter chip and clears on second click', () => {
+  it('selects a minimum star rating and clears it on a second click', () => {
     const onChange = vi.fn();
     const { rerender } = render(
       <FilterDashboard
@@ -102,17 +102,58 @@ describe('FilterDashboard', () => {
         onChangeFilter={onChange} onReset={() => {}} onSelect={() => {}}
       />
     );
-    fireEvent.click(screen.getByTestId('star-chip-5'));
-    expect(onChange).toHaveBeenLastCalledWith({ stars: 5 });
+    // Click the 3rd star — should set minStars to 3
+    fireEvent.click(screen.getByTestId('filter-stars-3'));
+    expect(onChange).toHaveBeenLastCalledWith({ minStars: 3 });
+    // Re-render with minStars=3 and click the 3rd star again — should clear
     rerender(
       <FilterDashboard
-        hotels={HOTELS} filtered={HOTELS} filters={{ ...DEFAULT_FILTERS, stars: 5 }}
+        hotels={HOTELS} filtered={HOTELS} filters={{ ...DEFAULT_FILTERS, minStars: 3 }}
         defaultFilters={DEFAULT_FILTERS} meta={META}
         onChangeFilter={onChange} onReset={() => {}} onSelect={() => {}}
       />
     );
-    fireEvent.click(screen.getByTestId('star-chip-5'));
-    expect(onChange).toHaveBeenLastCalledWith({ stars: null });
+    fireEvent.click(screen.getByTestId('filter-stars-3'));
+    expect(onChange).toHaveBeenLastCalledWith({ minStars: null });
+  });
+
+  it('shows "All stars" when no star rating is selected', () => {
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS} filters={DEFAULT_FILTERS}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+      />
+    );
+    expect(screen.getByTestId('filter-stars-label').textContent).toBe('All stars');
+  });
+
+  it('shows "N stars & up" once a star rating is selected', () => {
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS}
+        filters={{ ...DEFAULT_FILTERS, minStars: 4 }}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+      />
+    );
+    expect(screen.getByTestId('filter-stars-label').textContent).toBe('4 stars & up');
+  });
+
+  it('highlights stars 1..N when N is selected', () => {
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS}
+        filters={{ ...DEFAULT_FILTERS, minStars: 3 }}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+      />
+    );
+    expect(screen.getByTestId('filter-stars-1').className).toMatch(/active/);
+    expect(screen.getByTestId('filter-stars-2').className).toMatch(/active/);
+    expect(screen.getByTestId('filter-stars-3').className).toMatch(/active/);
+    expect(screen.getByTestId('filter-stars-4').className).not.toMatch(/active/);
+    expect(screen.getByTestId('filter-stars-5').className).not.toMatch(/active/);
   });
 
   it('shows the empty state when no hotels match', () => {
@@ -125,9 +166,7 @@ describe('FilterDashboard', () => {
     );
     expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     expect(screen.getByText(/No hotels match your filters/)).toBeInTheDocument();
-  });
-
-  it('forwards onSelect from a card click', () => {
+  });  it('forwards onSelect from a card click', () => {
     const onSelect = vi.fn();
     render(
       <FilterDashboard
@@ -158,7 +197,7 @@ describe('FilterDashboard', () => {
     render(
       <FilterDashboard
         hotels={HOTELS} filtered={HOTELS}
-        filters={{ ...DEFAULT_FILTERS, city: 'Paris', stars: 5 }}
+        filters={{ ...DEFAULT_FILTERS, city: 'Paris', minStars: 4 }}
         defaultFilters={DEFAULT_FILTERS} meta={META}
         onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
       />
@@ -179,6 +218,19 @@ describe('FilterDashboard', () => {
     expect(screen.getByTestId('active-chip-city')).toBeInTheDocument();
     expect(screen.getByTestId('active-chip-freeCancel')).toBeInTheDocument();
     expect(screen.getByTestId('clear-all')).toBeInTheDocument();
+  });
+
+  it('renders a single star chip in the active filter strip when set', () => {
+    render(
+      <FilterDashboard
+        hotels={HOTELS} filtered={HOTELS}
+        filters={{ ...DEFAULT_FILTERS, minStars: 3 }}
+        defaultFilters={DEFAULT_FILTERS} meta={META}
+        onChangeFilter={() => {}} onReset={() => {}} onSelect={() => {}}
+      />
+    );
+    expect(screen.getByTestId('active-chip-minStars')).toBeInTheDocument();
+    expect(screen.getByTestId('active-chip-minStars').textContent).toMatch(/3★ & up/);
   });
 
   it('toggles the free-cancellation filter', () => {

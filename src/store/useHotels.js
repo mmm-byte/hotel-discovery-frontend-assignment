@@ -38,11 +38,21 @@ export const CITIES = Array.from(
 
 /**
  * Unique star ratings present in the seed, ascending.
- * The seed contains 2-, 3-, 4-, and 5-star hotels.
+ * The seed contains 2-, 3-, 4-, and 5-star hotels, but the slider adapts to
+ * whatever the data actually contains (e.g. a 1-star economy chain would
+ * expand the range automatically).
  */
 export const STAR_RATINGS = Array.from(
   new Set(hotelsData.map((h) => h.star_rating))
 ).sort((a, b) => a - b);
+
+/**
+ * Min and max star rating present in the seed. Used to bound the star-rating
+ * range slider. Both default to "no constraint" so the UI can pick the full
+ * spread for whatever dataset is loaded.
+ */
+export const MIN_STAR = Math.min(...STAR_RATINGS);
+export const MAX_STAR = Math.max(...STAR_RATINGS);
 
 /**
  * Unique bed types across all rooms in the seed. Used to populate the
@@ -181,11 +191,11 @@ export function cancellationBadge(cancellation) {
 
 /**
  * Build the filter criteria object consumed by `filterHotels`.
- * Empty string for city / null for stars means "no constraint".
+ * Empty string for city / null for minStars means "no constraint".
  *
  * Available fields (all optional):
  *   city:         string ('' = any city)
- *   stars:        number | number[]  (null = any)
+ *   minStars:     number 1-5 | null  (minimum star rating, e.g. 4 = '4 stars and up')
  *   minPrice:     number | null      (cheapest-room anchor)
  *   maxPrice:     number | null
  *   search:       string             (matches name / city / description)
@@ -197,7 +207,7 @@ export function cancellationBadge(cancellation) {
  */
 export function buildFilters({
   city = '',
-  stars = null,
+  minStars = null,
   minPrice = null,
   maxPrice = null,
   search = '',
@@ -208,7 +218,7 @@ export function buildFilters({
   sort = 'recommended',
 } = {}) {
   return {
-    city, stars, minPrice, maxPrice, search,
+    city, minStars, minPrice, maxPrice, search,
     minRating, freeCancel, amenities, roomBedType, sort,
   };
 }
@@ -227,7 +237,7 @@ export const SORT_OPTIONS = [
 /**
  * Apply the filter criteria to the full hotel list, then sort the result.
  *  - city:        exact match (case-insensitive). '' = any.
- *  - stars:       integer equality (or array). null = any.
+ *  - minStars:    hotel.star_rating must be >= minStars (e.g. 4 = '4★ and up').
  *  - minPrice/maxPrice: applied to the hotel's cheapest room.
  *  - search:      case-insensitive substring on hotel name, city, or description.
  *  - minRating:   lower-bound on overall_rating.
@@ -241,7 +251,7 @@ export const SORT_OPTIONS = [
  */
 export function filterHotels(hotels, {
   city = '',
-  stars = null,
+  minStars = null,
   minPrice = null,
   maxPrice = null,
   search = '',
@@ -252,7 +262,6 @@ export function filterHotels(hotels, {
   sort = 'recommended',
 } = {}) {
   const q = String(search || '').trim().toLowerCase();
-  const starsSet = Array.isArray(stars) ? new Set(stars) : (stars == null ? null : new Set([stars]));
   const amenitySet = Array.isArray(amenities) && amenities.length > 0 ? new Set(amenities) : null;
 
   const filtered = hotels.filter((hotel) => {
@@ -260,10 +269,8 @@ export function filterHotels(hotels, {
     if (city && String(hotel.address.city).toLowerCase() !== String(city).toLowerCase()) {
       return false;
     }
-    // Star filter
-    if (starsSet && !starsSet.has(hotel.star_rating)) {
-      return false;
-    }
+    // Star filter — minimum star rating. A hotel passes if its rating is >= minStars.
+    if (minStars != null && Number(hotel.star_rating || 0) < Number(minStars)) return false;
     // Price filter — compare against the cheapest room
     const p = cheapestRoomPrice(hotel);
     const priceValue = p == null ? 0 : p;
@@ -467,11 +474,12 @@ export function bucketAmenities(amenities = []) {
 // ----------------------------------------------------------------------------
 
 /**
- * Default filter state used when the app first mounts.
+ * Default filter state used when the app first mounts. minStars starts as null
+ * (no constraint) so every hotel shows on first paint.
  */
 const DEFAULT_FILTERS = buildFilters({
   city: '',
-  stars: null,
+  minStars: null,
   minPrice: MIN_PRICE,
   maxPrice: MAX_PRICE,
   search: '',
@@ -566,6 +574,8 @@ export function useHotels() {
     meta: {
       CITIES,
       STAR_RATINGS,
+      MIN_STAR,
+      MAX_STAR,
       AMENITIES,
       BED_TYPES,
       MIN_PRICE,
