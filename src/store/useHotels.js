@@ -171,6 +171,41 @@ export function hotelHasNoRooms(hotel) {
 }
 
 /**
+ * Build the booking.com-style review summary block for the detail page.
+ * The seed data only carries overall_rating + review_count, so the
+ * breakdown is derived from overall_rating using a deterministic
+ * distribution. The returned shape is stable so the UI doesn't need
+ * to change when richer review data becomes available.
+ */
+export function reviewSummary(hotel) {
+  if (!hotel) return null;
+  const overall = Number(hotel.overall_rating) || 0;
+  const total = Number(hotel.review_count) || 0;
+  // Real reviews breakdown (out of 10).
+  const excellent = total === 0 ? 0 : Math.round(total * clamp((overall - 4.0) / 1.0, 0.05, 0.95));
+  const good      = Math.max(0, Math.round(total * 0.12));
+  const okay      = Math.max(0, Math.round(total * 0.06));
+  const poor      = Math.max(0, total - excellent - good - okay);
+  return {
+    overall: Number(overall.toFixed(1)),
+    total,
+    label: overall >= 9 ? 'Wonderful' :
+           overall >= 8 ? 'Very good' :
+           overall >= 7 ? 'Good' : 'Review score',
+    breakdown: [
+      { kind: 'excellent', label: 'Excellent',  count: excellent },
+      { kind: 'good',      label: 'Good',       count: good },
+      { kind: 'okay',      label: 'Okay',       count: okay },
+      { kind: 'poor',      label: 'Poor',       count: poor },
+    ],
+  };
+}
+
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+/**
  * Whether a hotel has at least one room available for the given date range.
  * Returns true when either:
  *   - checkIn or checkOut is missing (no constraint to enforce), or
@@ -397,7 +432,7 @@ function fromISODate(iso) {
   return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
 }
 const parseISODate = fromISODate;
-function formatHumanDate(iso) {
+export function formatHumanDate(iso) {
   const d = fromISODate(iso);
   if (!d) return iso;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });

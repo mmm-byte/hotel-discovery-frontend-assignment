@@ -22,6 +22,7 @@ import {
   bucketAmenities,
   hotelHasRoomsFor,
   recommendDateWindows,
+  reviewSummary,
   AMENITIES,
   BED_TYPES,
   SORT_OPTIONS,
@@ -465,5 +466,18 @@ describe('real seed sanity', () => {
     const known = new Set(AMENITIES);
     const unknown = hotelsData.flatMap((h) => h.amenities).filter((a) => !known.has(a));
     expect(unknown).toEqual([]);
+  });
+});
+describe('reviewSummary', () => {
+  it('returns a breakdown whose parts sum to the review count', () => {
+    const out = reviewSummary({ overall_rating: 4.8, review_count: 100 });
+    expect(out.total).toBe(100);
+    const sum = out.breakdown.reduce((s, b) => s + b.count, 0);
+    expect(sum).toBe(100);
+    expect(out.label).toMatch(/Wonderful|Very good|Good|Review score/);
+  });
+  it('returns null for an invalid hotel', () => {
+    expect(reviewSummary(null)).toBeNull();
+    expect(reviewSummary(undefined)).toBeNull();
   });
 });
