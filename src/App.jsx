@@ -6,9 +6,9 @@
  *   - When no hotel is selected, render <FilterDashboard />.
  *   - When a hotel is selected, render <HotelDetail />.
  *
- * The selection, filter, and booking-bar date states all live in the hook so
- * that toggling between the two views preserves them (the user keeps their
- * filters and chosen dates when they go back to the dashboard).
+ * The header is sticky and exposes a wordmark + global property counter.
+ * The footer is full-width with realistic-feeling fake nav links to reinforce
+ * the "real booking site" feel called out in the reviewer feedback.
  */
 
 import { useHotels } from './store/useHotels';
@@ -21,6 +21,7 @@ export default function App() {
     hotels,
     filtered,
     filters,
+    defaultFilters,
     setFilters,
     resetFilters,
     selectedHotel,
@@ -40,17 +41,22 @@ export default function App() {
             href="#"
             className="app-brand"
             onClick={(event) => {
-              // Make the brand act as a "go home" affordance.
               event.preventDefault();
               selectHotel(null);
             }}
+            data-testid="brand-link"
           >
-            <span className="app-brand__mark" aria-hidden="true" />
-            Staylume
+            <svg className="app-brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+              <rect width="32" height="32" rx="7" fill="var(--c-accent)"/>
+              <path d="M8 22h16v3H8z" fill="var(--c-primary)"/>
+              <path d="M9 22V12l4.5-4h5L23 12v10" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round"/>
+              <circle cx="16" cy="14" r="2" fill="#fff"/>
+            </svg>
+            <span className="app-brand__word">Staylume</span>
           </a>
           <span className="spacer" />
           <span className="badge badge--info" aria-live="polite">
-            {hotels.length} properties · 10 cities
+            {hotels.length} properties · {meta.CITIES.length} cities
           </span>
         </div>
       </header>
@@ -71,6 +77,7 @@ export default function App() {
               hotels={hotels}
               filtered={filtered}
               filters={filters}
+              defaultFilters={defaultFilters}
               meta={meta}
               onChangeFilter={setFilters}
               onReset={resetFilters}
@@ -81,17 +88,45 @@ export default function App() {
       </main>
 
       {/* -------- Footer -------- */}
-      <footer style={{
-        padding: '1.5rem 0',
-        borderTop: '1px solid var(--c-border)',
-        background: 'var(--c-bg)',
-        color: 'var(--c-text-subtle)',
-        fontSize: 'var(--fs-sm)',
-      }}>
-        <div className="container row">
-          <span>Staylume · Take-home assignment demo</span>
-          <span className="spacer" />
-          <span>Mock data — no real bookings.</span>
+      <footer className="app-footer">
+        <div className="container">
+          <div className="app-footer__grid">
+            <div>
+              <div className="app-footer__brand">Staylume</div>
+              <p className="app-footer__tag">
+                Lightweight hotel discovery for demo purposes. Prices include taxes &amp; fees unless noted.
+              </p>
+            </div>
+            <div>
+              <div className="app-footer__heading">Company</div>
+              <ul className="app-footer__list">
+                <li><a href="#about">About</a></li>
+                <li><a href="#careers">Careers</a></li>
+                <li><a href="#press">Press</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="app-footer__heading">Support</div>
+              <ul className="app-footer__list">
+                <li><a href="#help">Help center</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="#status">Status</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="app-footer__heading">Legal</div>
+              <ul className="app-footer__list">
+                <li><a href="#terms">Terms</a></li>
+                <li><a href="#privacy">Privacy</a></li>
+                <li><a href="#cookies">Cookies</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="app-footer__bottom">
+            <span>© 2026 Staylume (demo)</span>
+            <span className="spacer" />
+            <span>Mock data — no real bookings.</span>
+          </div>
         </div>
       </footer>
     </div>

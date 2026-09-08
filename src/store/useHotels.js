@@ -45,6 +45,22 @@ export const STAR_RATINGS = Array.from(
 ).sort((a, b) => a - b);
 
 /**
+ * Unique bed types across all rooms in the seed. Used to populate the
+ * "Room type" filter dropdown.
+ */
+export const BED_TYPES = Array.from(
+  new Set(hotelsData.flatMap((h) => h.rooms.map((r) => r.bed_type)))
+).sort();
+
+/**
+ * Unique amenity strings across all hotels in the seed. Used to populate
+ * the amenity multi-select filter. Sorted alphabetically for stable UI.
+ */
+export const AMENITIES = Array.from(
+  new Set(hotelsData.flatMap((h) => h.amenities || []))
+).sort();
+
+/**
  * Minimum and maximum nightly price across all rooms in the seed.
  * Used to seed the price-range filter slider bounds.
  */
@@ -166,26 +182,80 @@ export function cancellationBadge(cancellation) {
 /**
  * Build the filter criteria object consumed by `filterHotels`.
  * Empty string for city / null for stars means "no constraint".
+ *
+ * Available fields (all optional):
+ *   city:         string ('' = any city)
+ *   stars:        number | number[]  (null = any)
+ *   minPrice:     number | null      (cheapest-room anchor)
+ *   maxPrice:     number | null
+ *   search:       string             (matches name / city / description)
+ *   minRating:    number 0–5 | null  (filter by overall_rating)
+ *   freeCancel:   boolean            (if true, only hotels with a free-cancel policy)
+ *   amenities:    string[]           (must contain ALL of these amenities)
+ *   roomBedType:  string | null      (e.g. 'King', 'Queen' — hotel must have at least one such room)
+ *   sort:         string             ('recommended' | 'price-asc' | 'price-desc' | 'rating-desc' | 'stars-desc')
  */
-export function buildFilters({ city = '', stars = null, minPrice = null, maxPrice = null, search = '' } = {}) {
-  return { city, stars, minPrice, maxPrice, search };
+export function buildFilters({
+  city = '',
+  stars = null,
+  minPrice = null,
+  maxPrice = null,
+  search = '',
+  minRating = null,
+  freeCancel = false,
+  amenities = [],
+  roomBedType = null,
+  sort = 'recommended',
+} = {}) {
+  return {
+    city, stars, minPrice, maxPrice, search,
+    minRating, freeCancel, amenities, roomBedType, sort,
+  };
 }
 
 /**
- * Apply the filter criteria to the full hotel list.
- *  - city: exact match (case-insensitive). '' = any.
- *  - stars: integer equality (or array). null = any.
- *  - minPrice / maxPrice: applied to the hotel's cheapest room.
- *  - search: case-insensitive substring on hotel name, city, or description.
+ * Sort options for the dashboard. Each entry has a value + a label.
+ */
+export const SORT_OPTIONS = [
+  { value: 'recommended',  label: 'Recommended' },
+  { value: 'price-asc',    label: 'Price · Low to high' },
+  { value: 'price-desc',   label: 'Price · High to low' },
+  { value: 'rating-desc',  label: 'Guest rating · High to low' },
+  { value: 'stars-desc',   label: 'Star rating · High to low' },
+];
+
+/**
+ * Apply the filter criteria to the full hotel list, then sort the result.
+ *  - city:        exact match (case-insensitive). '' = any.
+ *  - stars:       integer equality (or array). null = any.
+ *  - minPrice/maxPrice: applied to the hotel's cheapest room.
+ *  - search:      case-insensitive substring on hotel name, city, or description.
+ *  - minRating:   lower-bound on overall_rating.
+ *  - freeCancel:  if true, hotel must have a free-cancellation policy.
+ *  - amenities:   hotel must include every string in this list.
+ *  - roomBedType: hotel must have at least one room with this bed_type.
+ *  - sort:        ordering of the result set.
  *
  * Hotels with no rooms are NOT excluded by price filtering — their price is
  * treated as 0 for range checks so the filter still passes them through.
  */
-export function filterHotels(hotels, { city = '', stars = null, minPrice = null, maxPrice = null, search = '' } = {}) {
+export function filterHotels(hotels, {
+  city = '',
+  stars = null,
+  minPrice = null,
+  maxPrice = null,
+  search = '',
+  minRating = null,
+  freeCancel = false,
+  amenities = [],
+  roomBedType = null,
+  sort = 'recommended',
+} = {}) {
   const q = String(search || '').trim().toLowerCase();
   const starsSet = Array.isArray(stars) ? new Set(stars) : (stars == null ? null : new Set([stars]));
+  const amenitySet = Array.isArray(amenities) && amenities.length > 0 ? new Set(amenities) : null;
 
-  return hotels.filter((hotel) => {
+  const filtered = hotels.filter((hotel) => {
     // City filter — exact, case-insensitive
     if (city && String(hotel.address.city).toLowerCase() !== String(city).toLowerCase()) {
       return false;
@@ -199,6 +269,23 @@ export function filterHotels(hotels, { city = '', stars = null, minPrice = null,
     const priceValue = p == null ? 0 : p;
     if (minPrice != null && priceValue < Number(minPrice)) return false;
     if (maxPrice != null && priceValue > Number(maxPrice)) return false;
+    // Guest-rating filter
+    if (minRating != null && Number(hotel.overall_rating || 0) < Number(minRating)) return false;
+    // Free-cancellation filter
+    if (freeCancel) {
+      const c = String(hotel.policies?.cancellation || '').toLowerCase();
+      if (!c.startsWith('free')) return false;
+    }
+    // Amenity filter (ALL of the requested amenities must be present)
+    if (amenitySet) {
+      const have = new Set(hotel.amenities || []);
+      for (const a of amenitySet) if (!have.has(a)) return false;
+    }
+    // Bed-type filter (at least one room must match)
+    if (roomBedType) {
+      const ok = (hotel.rooms || []).some((r) => r.bed_type === roomBedType);
+      if (!ok) return false;
+    }
     // Free-text search across name, city, and description
     if (q) {
       const haystack = `${hotel.name} ${hotel.address.city} ${hotel.description}`.toLowerCase();
@@ -206,6 +293,63 @@ export function filterHotels(hotels, { city = '', stars = null, minPrice = null,
     }
     return true;
   });
+
+  // Sort the filtered set. We return a new array to keep the store immutable.
+  return sortHotels(filtered, sort);
+}
+
+/**
+ * Sort hotels in-place-free style. Returns a new array.
+ * 'recommended' = highest rated first, then cheapest, then most reviewed.
+ */
+export function sortHotels(hotels, sort = 'recommended') {
+  const arr = hotels.slice();
+  switch (sort) {
+    case 'price-asc':
+      arr.sort((a, b) => (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity));
+      break;
+    case 'price-desc':
+      arr.sort((a, b) => (cheapestRoomPrice(b) ?? -Infinity) - (cheapestRoomPrice(a) ?? -Infinity));
+      break;
+    case 'rating-desc':
+      arr.sort((a, b) => Number(b.overall_rating || 0) - Number(a.overall_rating || 0));
+      break;
+    case 'stars-desc':
+      arr.sort((a, b) => Number(b.star_rating || 0) - Number(a.star_rating || 0));
+      break;
+    case 'recommended':
+    default:
+      arr.sort((a, b) => {
+        const r = Number(b.overall_rating || 0) - Number(a.overall_rating || 0);
+        if (r !== 0) return r;
+        const p = (cheapestRoomPrice(a) ?? Infinity) - (cheapestRoomPrice(b) ?? Infinity);
+        if (p !== 0) return p;
+        return Number(b.review_count || 0) - Number(a.review_count || 0);
+      });
+      break;
+  }
+  return arr;
+}
+
+/**
+ * Count the number of distinct active filter fields (used for the active-filter
+ * chip badge in the dashboard). A field counts as "active" when it has a
+ * non-default value.
+ */
+export function activeFilterCount(filters, defaults) {
+  if (!filters) return 0;
+  let n = 0;
+  for (const key of Object.keys(defaults)) {
+    const a = filters[key];
+    const b = defaults[key];
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) { n++; continue; }
+      const sa = new Set(a); for (const v of b) if (!sa.has(v)) { n++; break; }
+    } else if (a !== b) {
+      n++;
+    }
+  }
+  return n;
 }
 
 /**
@@ -331,6 +475,11 @@ const DEFAULT_FILTERS = buildFilters({
   minPrice: MIN_PRICE,
   maxPrice: MAX_PRICE,
   search: '',
+  minRating: null,
+  freeCancel: false,
+  amenities: [],
+  roomBedType: null,
+  sort: 'recommended',
 });
 
 /**
@@ -342,10 +491,12 @@ const DEFAULT_FILTERS = buildFilters({
  *   - filters:         current filter state object.
  *   - setFilters:      merge-patch the filters (partial update).
  *   - resetFilters:    restore defaults.
+ *   - defaultFilters:  the canonical default filter object (for diffing).
  *   - selectedHotel:   the hotel currently shown in the detail view, or null.
  *   - selectHotel:     set the selected hotel (or null to clear).
  *   - checkIn / checkOut / setDates: booking-bar state used by RoomAvailability.
- *   - meta:            static helpers (CITIES, STAR_RATINGS, MIN_PRICE, MAX_PRICE).
+ *   - meta:            static helpers (CITIES, STAR_RATINGS, AMENITIES, BED_TYPES,
+ *                      MIN_PRICE, MAX_PRICE, SORT_OPTIONS).
  */
 export function useHotels() {
   // The hotel list itself is immutable for the lifetime of the app —
@@ -406,6 +557,7 @@ export function useHotels() {
     filters,
     setFilters,
     resetFilters,
+    defaultFilters: DEFAULT_FILTERS,
     selectedHotel,
     selectHotel,
     checkIn,
@@ -414,8 +566,11 @@ export function useHotels() {
     meta: {
       CITIES,
       STAR_RATINGS,
+      AMENITIES,
+      BED_TYPES,
       MIN_PRICE,
       MAX_PRICE,
+      SORT_OPTIONS,
     },
   };
 }

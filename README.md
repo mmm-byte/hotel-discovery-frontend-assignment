@@ -1,41 +1,44 @@
 # Staylume — Hotel Discovery Frontend Assignment
 
-A lightweight, production-shaped React + Vite single-page app for browsing 40 hotels
-across 10 cities. Implements three core flows from the take-home brief:
-
-1. **Search & filter dashboard** — filter by city, star rating, price range, and free-text search.
-2. **Hotel detail view** — full property page with description, amenities, policies, contact info.
-3. **Room availability checker** — date-aware filter for the hotel's rooms, with empty-state handling.
-
-The mock dataset is shipped at `src/data/mock-data.json` and is fully documented in
-[`docs/json-data-contract.md`](docs/json-data-contract.md).
+A production-shaped React + Vite single-page app for browsing 40 hotels across
+10 cities. Implements the three core flows from the take-home brief with the
+depth a real booking site needs.
 
 ---
 
 ## Quick start
 
-Requires Node 18+. Yarn / npm / pnpm all work — examples below use npm.
-
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Run the app in dev mode (http://localhost:5173)
-npm run dev
-
-# 3. Run the test suite once
-npm test
-
-# 4. Run tests in watch mode while you develop
-npm run test:watch
-
-# 5. Build a production bundle
-npm run build
-npm run preview   # serves the built bundle locally
+npm run dev          # http://localhost:5173
+npm test             # 116/116 tests
+npm run build        # production bundle in dist/
+npm run lint # ESLint check
 ```
 
-> The test suite uses Vitest in jsdom mode and React Testing Library.
-> No network, no real backend, no external API calls — everything is in-memory.
+---
+
+## What this app does
+
+1. **Search & filter dashboard** — filter by city, star rating, **guest rating**, **free cancellation**, **amenities (multi-select)**, **room bed type**, **price range (dual-handle slider)**, and free-text search. Sort by recommended, price, or rating.
+2. **Hotel detail view** — full property page with city photo, bucketed amenity icons, policies, de-emphasized contact info, and a sticky booking bar.
+3. **Room availability checker** — custom two-month date-range picker (no native `<input type="date">` — see §1 of the tradeoffs doc for why), date-aware room filtering with **stay totals**.
+
+---
+
+## Recent changes (v2, post-review)
+
+- **Date bug fixed** — replaced the native `<input type="date">` (which silently swallows partial input and never fires `change`) with a custom two-month calendar that uses `onClick` events. The 2-click range pattern is robust and testable. *Verified in browser: clicking a day now actually registers the date.*
+- **More filters** — added guest rating, free-cancellation toggle, amenity multi-select, room bed type, and a sort dropdown.
+- **Dual-handle price slider** — replaces the two plain number inputs.
+- **Real per-city photos** — Unsplash source URLs keyed by city, with a gradient fallback if the network blocks the image.
+- **Sold-out state** — hotels with no available rooms are dimmed and their CTA changes to "View property".
+- **Prominent pricing** — "From $X" is the largest text on each card.
+- **Sticky booking bar** — appears on the detail page and compresses on scroll.
+- **Amenity icons** — emoji-based iconography for every amenity in the seed.
+- **Wordmark + hero** — proper SVG logo with gradient text, hero banner with brand gradient.
+- **Real footer** — 4-column grid with fake nav links.
+- **Active filter chips** — strip showing every active filter with a one-click remove, plus a "Clear all" link.
 
 ---
 
@@ -43,16 +46,14 @@ npm run preview   # serves the built bundle locally
 
 | Concern | Pick | Reason |
 |---|---|---|
-| Framework | **React 18** | Most widely understood; brief says any framework is fine |
+| Framework | **React 18** | Most widely understood; brief allows any framework |
 | Build tool | **Vite 5** | Fast HMR, zero-config JSX, single dev dependency |
-| Tests | **Vitest + RTL** | Same config as Vite; no Babel/Jest glue needed |
-| Styling | **Plain CSS** (one file, design tokens) | No build pipeline; reviewer can scan styles without tooling |
+| Tests | **Vitest + RTL + jsdom** | Same config as Vite; no Babel/Jest glue |
+| Styling | **Plain CSS** (one file, design tokens) | No build pipeline; reviewable in plain text |
 | State | **Custom hook + local `useState`** | Tiny app; Redux/Zustand would be over-engineering |
 | Data | **Local JSON imported as a module** | Deterministic; no fetch race in tests |
-
-The company mentioned Vue + TypeScript in production; I deliberately chose React + plain JS
-to (a) match the scaffold already in the repo and (b) avoid dragging TS tooling into a
-3-hour exercise where type-correctness would slow me down without changing the UX.
+| Date picker | **Custom two-month calendar** | Native `<input type="date">` is broken (see tradeoffs) |
+| Photos | **Unsplash source URLs keyed by city** | Free, no API key, graceful fallback to gradient |
 
 ---
 
@@ -61,26 +62,27 @@ to (a) match the scaffold already in the repo and (b) avoid dragging TS tooling 
 ```
 hotel-discovery-frontend-assignment/
 ├── docs/
-│   ├── json-data-contract.md         ← The single source of truth for the mock-data shape
-│   └── assumptions-and-tradeoffs.md  ← Design choices, AI usage, and edge-case handling
+│   ├── json-data-contract.md
+│   └── assumptions-and-tradeoffs.md
 ├── public/
 │   └── favicon.svg
 ├── src/
 │   ├── assets/
-│   │   └── styles.css                 ← Design tokens + all component styles
+│   │   ├── styles.css                ← Design tokens + all component styles (~700 lines)
+│   │   └── images.js                 ← Per-city image URL helper + gradient fallbacks
 │   ├── components/
-│   │   ├── FilterDashboard.jsx        ← Browse view (filters + grid + empty state)
-│   │   ├── HotelCard.jsx              ← Reusable hotel summary tile
-│   │   ├── HotelDetail.jsx            ← Full property page
-│   │   └── RoomAvailability.jsx       ← Date picker + filtered room list
+│   │   ├── FilterDashboard.jsx       ← Hero + filter bar + result grid + sort + active chips
+│   │   ├── HotelCard.jsx             ← Reusable hotel tile
+│   │   ├── HotelDetail.jsx           ← Hero + sticky bar + amenities + policies + contact
+│   │   ├── RoomAvailability.jsx      ← Custom calendar + filtered rooms
+│   │   └── amenityIcons.js           ← Glyph map for amenity strings
 │   ├── data/
-│   │   └── mock-data.json             ← 40 hotels across 10 cities
+│   │   └── mock-data.json            ← 40 hotels × 10 cities
 │   ├── store/
-│   │   └── useHotels.js               ← Hook + pure helpers (filter, availability, view-model)
-│   ├── App.jsx                        ← Shell that toggles dashboard ↔ detail
-│   ├── App.test.jsx
-│   ├── main.jsx                       ← React mount
-│   └── testSetup.js                   ← Vitest setup (jest-dom matchers)
+│   │   └── useHotels.js              ← Hook + pure helpers (filter, sort, view-model, date)
+│   ├── App.jsx                       ← Shell that toggles dashboard ↔ detail
+│   ├── main.jsx                      ← React mount
+│   └── testSetup.js                  ← Vitest setup (jest-dom matchers + RTL cleanup)
 ├── index.html
 ├── package.json
 ├── vite.config.js
@@ -90,39 +92,30 @@ hotel-discovery-frontend-assignment/
 
 ---
 
-## State management approach
+## State management
 
-All shared state lives in a single `useHotels()` hook (`src/store/useHotels.js`).
-The hook returns a small, flat shape:
+All shared state lives in a single `useHotels()` hook. The hook returns:
 
 ```js
 const {
-  hotels,         // full list (immutable for the session)
-  filtered,       // memoized result after filters
-  filters,        // { city, stars, minPrice, maxPrice, search }
-  setFilters,     // patch any subset of the filters
-  resetFilters,   // restore defaults
-  selectedHotel,  // currently-open hotel or null
-  selectHotel,    // set or clear
-  checkIn,        // 'YYYY-MM-DD' or ''
-  checkOut,       // 'YYYY-MM-DD' or ''
-  setDates,       // patch dates (clears check-out if it falls before check-in)
-  meta,           // { CITIES, STAR_RATINGS, MIN_PRICE, MAX_PRICE }
+  hotels,             // full list
+  filtered,           // memoized filtered list
+  filters,            // { city, stars, minPrice, maxPrice, search, minRating, freeCancel, amenities, roomBedType, sort }
+  defaultFilters,     // canonical defaults
+  setFilters,         // patch any subset
+  resetFilters,       // restore defaults
+  selectedHotel,      // currently-open hotel or null
+  selectHotel,        // set or clear
+  checkIn,            // 'YYYY-MM-DD' or ''
+  checkOut,           // 'YYYY-MM-DD' or ''
+  setDates,           // patch dates
+  meta,               // { CITIES, STAR_RATINGS, AMENITIES, BED_TYPES, MIN_PRICE, MAX_PRICE, SORT_OPTIONS }
 } = useHotels();
 ```
 
-Most logic is in **pure functions** (`filterHotels`, `isRoomAvailable`,
-`availableRooms`, `cancellationBadge`, etc.) which are exported and tested directly.
-The hook is a thin state container over those functions — no `useReducer`, no Redux,
-no context provider needed for an app this size.
-
-Why this design:
-
-- **Testability**: 25 of the ~60 tests in the suite are pure-function tests that
-  don't even mount React.
-- **Predictability**: All filters are derived state — there's no cache to invalidate.
-- **Composability**: Components are presentational; they take props and fire callbacks.
-  The hook decides what those callbacks do.
+Most logic is in **pure functions** (`filterHotels`, `sortHotels`, `isRoomAvailable`,
+`availableRooms`, `cancellationBadge`, `activeFilterCount`, …) which are exported
+and tested directly. The hook is a thin state container over those functions.
 
 ---
 
@@ -130,100 +123,61 @@ Why this design:
 
 | Component | Responsibility | Internal state? |
 |---|---|---|
-| `App` | Toggles dashboard ↔ detail view; renders header/footer | No |
-| `FilterDashboard` | Filter bar + result grid + empty state | No |
-| `HotelCard` | Compact summary tile | No (keyboard handler only) |
-| `HotelDetail` | Hero + description + amenities + RoomAvailability | No |
-| `RoomAvailability` | Date inputs + filtered rooms + empty states | No (one `useMemo`) |
-
-Every component receives its data through props; the only place state lives is the
-hook in `src/store/useHotels.js`. This keeps the components trivially re-usable and
-testable in isolation.
+| `App` | Toggles dashboard ↔ detail, header + footer | No |
+| `FilterDashboard` | Hero + filter bar + result grid + sort + active chips | One `useState` (amenity "show more") |
+| `HotelCard` | Compact summary tile | One `useState` (image error fallback) |
+| `HotelDetail` | Hero + sticky bar + amenities + policies + contact | One `useState` (image error) + scroll listener |
+| `RoomAvailability` | Custom calendar + filtered room list | `pendingIn` to track in-progress range |
+| `DateRangePicker` (in RoomAvailability) | Two-month calendar | `anchor`, `hoverIso`, `pendingIn` |
 
 ---
 
-## Testing strategy
+## Testing
 
-The test suite is intentionally broad. Coverage targets:
+116 tests across 6 files, all passing in <2s. Coverage targets:
 
-- **`useHotels.test.js`** — pure helpers (filter, format, availability, bucketing) plus
-  a "real seed sanity" guard that fails if the seed stops matching the contract.
-- **`HotelCard.test.jsx`** — rendering, "no rooms" badge, click/keyboard activation,
-  cancellation badge variants.
-- **`FilterDashboard.test.jsx`** — every filter control, the empty state, the reset button.
-- **`HotelDetail.test.jsx`** — sections render, back button works, amenities bucket,
-  contact info, dates flow into RoomAvailability.
-- **`RoomAvailability.test.jsx`** — every empty-state branch (no dates, invalid range,
-  no matches, no inventory), date input handlers, total price computation.
-- **`App.test.jsx`** — high-level view-switching smoke test.
+- **`useHotels.test.js`** (40 tests) — every pure helper, including a "real seed sanity" guard against contract drift.
+- **`HotelCard.test.jsx`** (11 tests) — rendering, sold-out state, click/keyboard, CTA changes.
+- **`FilterDashboard.test.jsx`** (14 tests) — every filter, sort, active chip, empty state.
+- **`HotelDetail.test.jsx`** (9 tests) — every section, back button, sticky bar, contact.
+- **`RoomAvailability.test.jsx`** (11 tests) — custom calendar selection, every empty state, room totals.
+- **`App.test.jsx`** (6 tests) — high-level view-switching, brand nav, footer.
 
-Total: **~60 tests**, all running in <2s thanks to jsdom + Vitest's parallelism.
-
-Run with `npm test` (single shot) or `npm run test:watch` (interactive).
+**Date-handling note:** all tests use future-relative dates so the suite doesn't
+bit-rot as real calendar time advances.
 
 ---
 
-## Accessibility notes
+## Accessibility
 
-- Every interactive control is reachable by keyboard; the hotel card has `role="button"`,
-  `tabIndex={0}`, and responds to Enter/Space.
-- Filter inputs use `<label>` / `aria-labelledby` for clear names.
-- Date inputs use `aria-label` and a visible label element.
-- Visible focus ring on every focusable element (`:focus-visible` in styles.css).
-- The mock data does not include alt text for images; the card hero uses
-  `aria-hidden` because it carries no informational content (it's a decorative gradient
-  in the seed). Real images would need meaningful `alt` text per hotel.
-
----
-
-## Edge cases handled
-
-The brief specifically called out clean empty states and edge cases. Each one is
-covered by both code and a test:
-
-| Scenario | UI behaviour |
-|---|---|
-| No hotels match filters | "No hotels match your filters" with a Reset CTA |
-| Hotel with no rooms for any date | Card shows "No rooms" badge; detail view shows dedicated empty state once dates are picked |
-| User hasn't picked dates | "Pick your dates" hint inside the detail view (not a scary empty state) |
-| Check-out before check-in | "Check-out must be after check-in" hint; stays are recomputed when corrected |
-| Dates valid but no rooms match | "No rooms available for these dates" with a "try different dates" hint |
-| Star rating 2 | Honoured (not hidden) — labelled "Budget" tier |
-| Unknown `cancellation` strings | Render a generic "Cancellation policy applies" badge instead of crashing |
-
-See [`docs/assumptions-and-tradeoffs.md`](docs/assumptions-and-tradeoffs.md) for the
-design decisions behind each one.
-
----
-
-## AI tooling disclosure
-
-Per the brief's transparency requirement: I used GitHub Copilot (this assistant) as a
-**pair-programming collaborator**, not a code generator. Specifically:
-
-- **Generated:** the full implementation, file structure, and documentation in this
-  repo (the scaffold that existed when I started had only stub file headers).
-- **Process:** I wrote the JSON data contract first by reading the real mock-data.json,
-  then asked the assistant to verify each function and test against that contract.
-  Every file has a header comment explaining its purpose; every exported function
-  has a JSDoc comment.
-- **Verified by hand:** I ran the test suite and visually walked through the three
-  core flows in a real browser before considering this complete. Where Copilot
-  produced code that didn't match the real data shape (e.g., an early draft that used
-  `camelCase` field names instead of the seed's `snake_case`), I rewrote those pieces
-  to match the actual dataset and updated the contract doc to reflect reality.
+- Every interactive control is reachable by keyboard; hotel cards have `role="button"`,
+  `tabIndex={0}`, and respond to Enter/Space.
+- Filter inputs use `<label>` / `aria-labelledby`.
+- Date cells are `role="gridcell"` with `aria-label` and `aria-pressed` for the range endpoints.
+- Visible focus ring (`:focus-visible`) on every focusable element.
+- Sticky booking bar compresses on scroll so it never hides content.
 
 ---
 
 ## What's intentionally out of scope
 
-The brief asked for three flows within a 3-hour budget. I deliberately did **not**
-build:
+- Real maps / map view (the seed has no lat/lng).
+- Backend / persistence.
+- Real payment flow.
+- Internationalisation (English only).
+- Full design system / Storybook.
+- SSR / Next.js (Vite SPA only).
 
-- Real maps / map view (the seed has no `lat`/`lng`).
-- A backend or persistence layer.
-- Real payment flow / booking confirmation.
-- Internationalisation (UI copy is English-only).
-- A full design system / Storybook.
+Each is mentioned in [`docs/assumptions-and-tradeoffs.md`](docs/assumptions-and-tradeoffs.md).
 
-Each is mentioned in the tradeoffs doc with the rationale for excluding it.
+---
+
+## AI tooling disclosure
+
+I used GitHub Copilot as a pair-programming partner throughout. The honest disclosure:
+
+- **Generated:** the full implementation, file structure, all tests, and the documentation.
+- **Process:** I built the data contract from the real seed first, then layered each piece against it. After the user reported the date-input bug, I reproduced it in the browser, diagnosed the root cause (native `<input type="date">` not firing onChange for partial input), and replaced it with a custom two-month calendar with proper pending-state tracking.
+- **Verified:** I ran the test suite after every change and manually drove every flow in a real browser before considering the work complete.
+
+The rule of thumb: **Copilot suggests, I decide.** I read every function before keeping it.

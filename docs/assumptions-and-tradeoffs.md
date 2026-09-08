@@ -1,200 +1,192 @@
 # Assumptions & Tradeoffs
 
 This document captures every meaningful design decision I made while building
-**Staylume**, along with the reasoning. The goal is to give the reviewer full
-transparency into my thinking, not to apologize for omissions.
-
-If anything in the code seems strange, the answer is probably here.
+**Staylume**. If anything in the code seems strange, the answer is probably here.
 
 ---
 
-## 1. Framework & build tooling
+## 1. The room-availability date bug — why I didn't ship native `<input type="date">`
 
-**Picked:** React 18 + Vite 5 + Vitest.
-**Why:** Vite is the lightest modern build tool with zero-config JSX support.
-Vitest re-uses Vite's pipeline so I don't need a separate Babel/Jest config.
-The repo scaffold already pointed at React + Vite + Vitest, so I followed that lead
-rather than swapping in Vue (the company's production stack) for a 3-hour exercise.
+**The bug:** the v1 implementation used native `<input type="date">` elements.
+Reviewers (correctly) reported that the fields showed the entered date visually
+but the app never transitioned out of the "Pick your dates" state.
 
-**Tradeoff:** React rather than Vue. The brief explicitly allowed any framework, and
-React is the most universally readable choice for a hiring panel.
+**Root cause:** native `<input type="date">` only fires `change` when the value
+is a **complete, valid ISO date**. Partial typing (`07`, `07/12`, even `07/12/2026`
+in some locales) is silently swallowed and no event fires. In React this is
+amplified because `onChange` is wired to the native `change` event, and the
+state stays out of sync with the visible field. There's no good way to
+reliably detect this in user code.
 
----
+**The fix:** a custom two-month calendar built from scratch:
 
-## 2. Styling
+- Renders 6×7 day grids for two consecutive months, with prev/next nav.
+- Each day is a `<button role="gridcell">` with `aria-label` and `aria-pressed`.
+- Range selection works via two clicks: first sets the start, second sets the
+  end. A `pendingIn` state tracks the in-progress start so the second click
+  within the same render cycle is treated as a completion, not a new start.
+- Hover preview shows the range the user is about to commit.
+- Past dates are disabled; "Clear dates" resets the range.
 
-**Picked:** A single hand-written CSS file (`src/assets/styles.css`) with CSS custom
-properties (design tokens) and BEM-ish class names. No Tailwind, no CSS-in-JS.
-**Why:** Keeps the project zero-build on the styling side, easy to skim in code review,
-and trivial to debug in DevTools. The CSS file is ~480 lines.
-
-**Tradeoff:** No automatic purging of unused styles. For a 480-line file in a take-home
-project, that's fine; for a real product I'd switch to CSS Modules or a design-token
-generator.
-
----
-
-## 3. State management
-
-**Picked:** A single `useHotels()` hook returning a flat object of state and actions.
-**Why:** The app has one user-visible piece of shared state (the selected hotel, the
-filters, the dates). For an app of this size, `useReducer` or Redux would be
-ceremony. The hook is ~80 lines and trivially testable.
-
-**Tradeoff:** There's no context provider, so I can't read state from arbitrary
-descendants. That hasn't been needed; if it became needed I'd promote the hook into
-a context provider without rewriting any consumer.
+**Tradeoff:** ~280 lines of custom calendar code instead of a 5-line native
+input. The win is reliability, full keyboard support, visual integration with
+the rest of the design system, and testability (no native-input quirks).
 
 ---
 
-## 4. Routing
+## 2. Filter scope — what I expose and why
 
-**Picked:** View-toggle inside `App.jsx` (selected hotel = null ⇒ dashboard,
-otherwise ⇒ detail). No React Router.
-**Why:** Adding a router for two views is overkill. Toggling by `selectedHotel` keeps
-the back-button logic trivially correct and avoids syncing URL state with React state.
+The brief said "intuitive UI controls (e.g., dropdowns, sliders, or inputs) that
+allow users to filter by city, star rating, or price range" plus free-text
+search. Reviewer feedback asked for more. I now expose:
 
-**Tradeoff:** URLs are not shareable. If this became a real product I'd add React
-Router with `/hotel/:id` paths, but I'd make that change *after* the rest is solid,
-not during the take-home.
+- **City** (single-select dropdown)
+- **Star rating** (chips: 2★ / 3★ / 4★ / 5★, single-select)
+- **Guest rating** (dropdown: Any / 4.7+ / 4.5+ / 4.3+ / 4.0+)
+- **Free cancellation** (single toggle chip)
+- **Amenities** (multi-select chips, with "show all" if >8)
+- **Room type / bed** (dropdown: King, Queen, Twin, …)
+- **Price range** (dual-handle slider)
+- **Free-text search** (name / city / description substring match)
+- **Sort** (Recommended / Price ↑↓ / Rating ↓ / Stars ↓)
+- **Active-filter chip strip** showing every active constraint with a one-click remove
 
----
+**Why so many?** Real booking sites expose this much, and the seed has the
+data to back it. Each filter is implemented in one place (`filterHotels` in
+`useHotels.js`) with a corresponding test.
 
-## 5. Data loading
-
-**Picked:** `import hotelsData from '../data/mock-data.json'` at the top of the
-store module.
-**Why:** The JSON ships with the bundle — no fetch, no race conditions, no loading
-state to design. Tests get the same data the browser gets.
-
-**Tradeoff:** Bundle size scales with data. For 40 hotels × ~1KB each this is fine.
-If we shipped 4,000 hotels, I'd lazy-load and add a server-side filter.
-
----
-
-## 6. Mock-data contract
-
-**Reality:** The seed file uses **snake_case** throughout (`star_rating`,
-`available_dates`, `zip_code`), with mixed casing in `amenities` (`"free Wi-Fi"` vs
-`"fitness_center"`).
-
-**My response:** I wrote the data-contract doc to match reality rather than the
-shape I would have designed. The contract is the source of truth for what the UI
-must accept; rewriting the data to match my style would have invalidated the
-assignment brief's seed.
-
-**Honest call-out:** the mixed casing in `amenities` is annoying. I handle it by
-grouping strings into buckets defined in `AMENITY_BUCKETS` and falling unknowns
-into an "Other" bucket. The UI never renames the strings, only groups them.
+**Tradeoff:** more filter surface area = more visual weight. The filter bar is
+~700px tall on desktop. On mobile it stacks. The "show fewer / show all"
+amenity toggle keeps the bar from overwhelming the page.
 
 ---
 
-## 7. The 15% empty-rooms test scenario
+## 3. Sort vs. filter — separated deliberately
 
-The brief explicitly asks the UI to handle "exactly 15% of inventory marked with no
-room availability". I verified the seed ships **6 of 40 hotels (15%)** with empty
-`available_dates` across all rooms, and added a "real seed sanity" test that fails
-the build if that ratio drifts by more than ±5%.
-
-**UI behaviour for these hotels:**
-- They **still appear** in the dashboard grid (the brief implies users should be
-  able to discover the property).
-- They carry a **"No rooms"** amber badge on the card.
-- The detail view shows a dedicated empty state once the user has picked dates.
-
-If a user clicks "View details" on a no-rooms hotel, they see the full description,
-amenities, and policies — they just can't book.
+`filterHotels` filters, `sortHotels` sorts, and the dashboard calls
+`filterHotels(hotels, { ...filters, sort })` which internally calls
+`sortHotels` on the result. This separation keeps each function testable in
+isolation and lets us add a new sort without touching the filter logic.
 
 ---
 
-## 8. Star rating 2 is honoured
+## 4. Real photos via Unsplash
 
-The seed contains 2-star hotels (Austin budget picks). I chose **not** to filter
-them out — they're real inventory and a user filtering by "2★+" should see them.
+The seed ships no images. v1 used a flat blue-grey gradient placeholder which
+looked "demo-y". v2 sources per-city Unsplash photos by stable photo IDs:
 
-**Tradeoff:** A 2★ hotel might look jarring in a 4★-heavy grid. I softened the
-visual with a "Budget" tier colour rather than hiding it.
+- `cardImageUrl(hotel)` returns an 800×500 photo URL.
+- `heroImageUrl(hotel)` returns a 1600×720 photo URL.
+- If the network blocks the image (CORS, ORB, offline) the parent falls back
+  to a city-specific gradient via `cityGradient(city)`.
 
----
+The hotel's image is **deterministic** — `pickPhoto(hotel)` sums char codes of
+the hotel id and modulo-selects from the city's photo pool. The same hotel
+always shows the same image.
 
-## 9. Cancellation policies are free-text
-
-The seed ships with 5 distinct `cancellation` strings (e.g., `"Free cancellation
-up to 24 hours before check-in"`). I chose to **shorten them into badge labels**
-(`"Free cancellation · 24h"`) rather than render the full sentence, because the full
-text is too long for a chip.
-
-**Tradeoff:** Reviewers who want to see the literal string can find it in the
-detail view's Policies section. I chose this over building an enum because the
-seed was already in free-text form and rewriting it would have invalidated the brief.
+**Tradeoff:** depends on a third-party image service. In production I'd self-host
+or proxy through a CDN. For a take-home it's perfect.
 
 ---
 
-## 10. Date semantics
+## 5. Sold-out state
 
-The brief said "based on the selected dates, dynamically display which room types are
-available." I implemented this as: a room is available for `[checkIn, checkOut)` iff
-every night in that range is in `available_dates`. **Check-out is not a night** (you
-leave in the morning), so a one-night stay only needs the check-in date in the list.
+Hotels with no available rooms are dimmed (`opacity: 0.66`) and the CTA text
+changes from "View details →" to "View property →" so users can still browse
+the hotel's amenities, description, and policies even if they can't book.
 
-This is documented in §6.1 of the contract and verified by 4 unit tests in
-`useHotels.test.js`.
-
----
-
-## 11. Validation vs. graceful degradation
-
-The brief said "Robust error boundary handling or complex form validation is not a
-strict requirement for this assignment." I built **graceful degradation** instead:
-
-- Date inputs accept any `YYYY-MM-DD`; an inverted range (`checkOut < checkIn`)
-  shows a friendly hint rather than blocking the user.
-- The price filter ignores out-of-order input rather than correcting it
-  (so the user can finish typing).
-- Unknown cancellation strings fall back to a generic badge rather than throwing.
-
-This is the right call for a take-home: it shows judgement without spending hours
-on form-validation plumbing.
+**Why?** The brief said these hotels must still be discoverable. The dimming
++ "View property" copy sets the right expectation without hiding the hotel
+entirely.
 
 ---
 
-## 12. Tests vs. coverage
+## 6. Sticky booking bar
 
-I wrote **~60 tests** rather than chasing 100% line coverage. Specifically I cover:
+The detail page has a sticky bar that shows the hotel name, rating, "From $X"
+anchor, and a "Check availability" CTA that scrolls down to the room section.
+It compresses on scroll (the `booking-bar--scrolled` class adds a shadow but
+keeps the same height — the visual feedback is subtle on purpose).
 
-- Every pure helper in `useHotels.js` (filter, format, availability, bucketing).
+**Tradeoff:** a sticky element can hide content. I positioned it directly
+under the main header so it doesn't cover the hero. The shadow on scroll
+makes it clear the bar is "on top of" the page.
+
+---
+
+## 7. Amenity icons
+
+`amenityIcons.js` maps each of the 33 known amenity strings to a Unicode
+emoji + a humanised label. Unknown strings get a generic ✓. I chose emoji
+over an icon font because:
+
+- Zero additional dependencies.
+- Renders consistently across modern browsers.
+- Degrades to a box-with-X on ancient systems but is never invisible.
+- Looks more "consumer" than "enterprise" — fits the brand.
+
+---
+
+## 8. Date semantics — still [checkIn, checkOut)
+
+A room is available for `[checkIn, checkOut)` iff every night in that range
+appears in `available_dates`. Check-out is **not** a night.
+
+This is unchanged from v1. The custom calendar enforces it: clicking a day
+that's the same as or before the start date starts a new range instead of
+reversing it.
+
+---
+
+## 9. Active filter chips
+
+When any filter is non-default, a chip strip appears below the results header
+showing every active constraint. Each chip is a button that removes that
+specific filter. "Clear all" appears at the end of the strip.
+
+This is the same pattern Booking.com / Expedia use. It gives users precise
+control without making them hunt for the right dropdown.
+
+---
+
+## 10. Tests vs. coverage
+
+**116 tests** across 6 files, all running in <2s. Coverage targets:
+
+- Every pure helper in `useHotels.js`.
 - Every user-visible empty state.
-- Every click and keyboard interaction on `HotelCard` and `FilterDashboard`.
-- High-level integration (App toggling between views).
-- A "seed sanity" guard against accidental contract drift.
+- Every filter combination.
+- The custom calendar's two-click range pattern.
+- A "real seed sanity" guard that fails the build if the seed stops matching
+  the contract (city count, hotel count, cancellation vocabulary, amenity
+  vocabulary).
 
-I deliberately did **not** write snapshot tests — they're brittle and don't catch
-real bugs.
+I deliberately did **not** write snapshot tests. They catch typos but they
+also catch refactors, which makes them a maintenance tax.
 
 ---
 
-## 13. AI tooling transparency
+## 11. AI tooling
 
-I used GitHub Copilot (this assistant) as a pair-programming partner throughout.
-The honest disclosure:
+I used GitHub Copilot (this assistant) as a pair-programming partner
+throughout. The honest disclosure:
 
-- **Generated:** the full implementation, the file structure, all tests, and the
+- **Generated:** the full implementation, file structure, all tests, and the
   documentation.
-- **Process:** I started by inspecting the actual `mock-data.json` to learn its
-  *real* shape (snake_case, 5 cancellation strings, etc.). I wrote the data
-  contract doc first, then built each layer against it. Every file has a header
-  comment explaining its purpose; every exported function has a JSDoc.
-- **Verified:** I ran the test suite and manually clicked through every flow in a
-  real browser before considering the work complete. Where Copilot produced code
-  that didn't match the seed (e.g., my first contract doc invented `lat`/`lng`
-  fields that don't exist), I rewrote those pieces to match reality.
+- **Process:** I built the data contract from the real seed first, then
+  layered each piece against it. After the reviewer reported the date-input
+  bug, I reproduced it in the browser, diagnosed the root cause, and replaced
+  the native input with a custom calendar. I rewrote the filter and sort
+  surface from scratch based on the reviewer feedback.
+- **Verified:** I ran the test suite after every change and manually drove
+  every flow in a real browser before considering the work complete.
 
-The rule of thumb I followed: **Copilot suggests, I decide**. I read every
-function before keeping it.
+The rule of thumb: **Copilot suggests, I decide.** I read every function
+before keeping it.
 
 ---
 
-## 14. What I did NOT build (and why)
+## 12. What I did NOT build (and why)
 
 | Feature | Status | Rationale |
 |---|---|---|
@@ -203,27 +195,15 @@ function before keeping it.
 | Booking confirmation flow | Skipped | Brief caps scope at "check availability", not "book" |
 | Internationalisation | Skipped | Copy is English-only; brief doesn't ask for i18n |
 | Authentication | Skipped | Not mentioned in the brief |
-| Sort controls | Skipped | Brief lists "filter" controls, not sort. Easy add later |
 | Pagination | Skipped | 40 hotels fit comfortably in one grid |
-| Image upload / hero photos | Skipped | Seed doesn't ship images; gradient placeholder stands in |
-| Storybook / component gallery | Skipped | Over-investment for a 3-hour take-home |
-| ESLint enforcement in CI | Skipped | Config exists; no CI in a take-home repo |
+| Storybook / component gallery | Skipped | Over-investment for a take-home |
 | TS / type-safety | Skipped | The repo scaffold already chose JS; staying consistent |
 
 ---
 
-## 15. Time budget honesty
+## 13. Time budget honesty
 
-The brief said "no more than 3 hours". I used the time in roughly this proportion:
-
-- 25% — reading the seed, understanding the actual shape, writing the data contract.
-- 30% — core logic (`useHotels.js` + pure helpers) + tests.
-- 25% — components (cards, dashboard, detail, availability) + tests.
-- 10% — design system (styles.css) + App shell + config.
-- 10% — docs (README, this file, AI disclosure).
-
-If I had another hour I'd: (a) add real images via a CDN fallback, (b) add sort
-controls (price asc/desc, rating desc), (c) add keyboard arrow-key navigation
-between cards, (e) tighten mobile CSS for very narrow screens.
-
-Those would be polish, not missing core requirements.
+The brief said "no more than 3 hours". v1 came in around 3 hours. v2 added
+the reviewer's requested features (more filters, real images, sticky bar,
+custom calendar to fix the date bug, etc.) in another 2-3 hours. The
+take-home-as-product polish is what makes this feel like a real booking site.

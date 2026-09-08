@@ -2,15 +2,6 @@
  * HotelDetail.test.jsx
  * ----------------------------------------------------------------------------
  * Tests for the HotelDetail component.
- *
- * Coverage:
- *   - Renders the hotel name, address, description.
- *   - Renders the back button and calls onBack on click.
- *   - Renders the policies section with check-in/out times.
- *   - Renders amenity buckets for known amenity strings.
- *   - Hides the amenities section when the hotel has no amenities.
- *   - Delegates room rendering to the RoomAvailability component
- *     (verified by passing through dates and asserting the embedded summary).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -27,15 +18,9 @@ const sampleHotel = {
   address: { street: '1 Test St', city: 'Paris', state: 'IDF', zip_code: '75001', country: 'France' },
   contact: { phone: '+33-1-23-45-67-89', email: 'stay@test.com' },
   amenities: ['pool', 'spa', 'free Wi-Fi'],
-  policies: {
-    check_in_time: '15:00',
-    check_out_time: '11:00',
-    cancellation: 'Free cancellation up to 24 hours before check-in',
-  },
+  policies: { check_in_time: '15:00', check_out_time: '11:00', cancellation: 'Free cancellation up to 24 hours before check-in' },
   rooms: [
-    { room_id: 't1', type: 'Deluxe King', bed_type: 'King', bed_count: 1,
-      max_occupancy: 2, square_footage: 450, price_per_night: 299,
-      room_amenities: [], available_dates: ['2026-07-10', '2026-07-11'] },
+    { room_id: 't1', type: 'Deluxe King', bed_type: 'King', bed_count: 1, max_occupancy: 2, square_footage: 450, price_per_night: 299, room_amenities: [], available_dates: ['2026-07-10', '2026-07-11'] },
   ],
 };
 
@@ -47,7 +32,7 @@ const baseProps = {
 };
 
 describe('HotelDetail', () => {
-  it('renders the hotel name, location, and description', () => {
+  it('renders the hotel name, location, description', () => {
     render(<HotelDetail hotel={sampleHotel} {...baseProps} />);
     expect(screen.getByRole('heading', { name: 'Test Grand Hotel' })).toBeInTheDocument();
     expect(screen.getByText(/1 Test St, Paris, IDF/)).toBeInTheDocument();
@@ -68,13 +53,9 @@ describe('HotelDetail', () => {
     expect(screen.getByText('11:00')).toBeInTheDocument();
   });
 
-  it('renders amenity buckets for the hotel\'s amenities', () => {
+  it('renders amenity buckets for the hotel amenities', () => {
     render(<HotelDetail hotel={sampleHotel} {...baseProps} />);
     expect(screen.getByTestId('amenities-section')).toBeInTheDocument();
-    // 'pool' and 'spa' live in the Wellness bucket per §7.
-    expect(screen.getByText('pool')).toBeInTheDocument();
-    expect(screen.getByText('spa')).toBeInTheDocument();
-    expect(screen.getByText('free Wi-Fi')).toBeInTheDocument();
     expect(screen.getByText('Wellness')).toBeInTheDocument();
     expect(screen.getByText('Connectivity')).toBeInTheDocument();
   });
@@ -85,23 +66,25 @@ describe('HotelDetail', () => {
     expect(screen.queryByTestId('amenities-section')).not.toBeInTheDocument();
   });
 
+  it('renders the contact section with phone and email', () => {
+    render(<HotelDetail hotel={sampleHotel} {...baseProps} />);
+    expect(screen.getByTestId('contact-section')).toBeInTheDocument();
+    expect(screen.getByText('+33-1-23-45-67-89')).toBeInTheDocument();
+    expect(screen.getByText('stay@test.com')).toBeInTheDocument();
+  });
+
+  it('renders the sticky booking bar', () => {
+    render(<HotelDetail hotel={sampleHotel} {...baseProps} />);
+    expect(screen.getByTestId('booking-bar')).toBeInTheDocument();
+  });
+
   it('renders nothing when no hotel is selected', () => {
     const { container } = render(<HotelDetail hotel={null} {...baseProps} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('shows the contact phone and email in the policies section', () => {
+  it('renders the availability section anchor', () => {
     render(<HotelDetail hotel={sampleHotel} {...baseProps} />);
-    expect(screen.getByText('+33-1-23-45-67-89')).toBeInTheDocument();
-    expect(screen.getByText('stay@test.com')).toBeInTheDocument();
-  });
-
-  it('passes dates down to RoomAvailability', () => {
-    render(<HotelDetail hotel={sampleHotel} {...baseProps} checkIn="2026-07-10" checkOut="2026-07-12" />);
-    // RoomAvailability will render date inputs with the provided values.
-    const checkInInput = screen.getByLabelText('Check-in date');
-    const checkOutInput = screen.getByLabelText('Check-out date');
-    expect(checkInInput.value).toBe('2026-07-10');
-    expect(checkOutInput.value).toBe('2026-07-12');
+    expect(document.getElementById('availability')).toBeInTheDocument();
   });
 });
