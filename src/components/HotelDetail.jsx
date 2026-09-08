@@ -235,17 +235,6 @@ function ReserveCard({ fromPrice, checkIn, checkOut }) {
         </p>
       )}
 
-      <dl className="reserve-card__dates">
-        <div>
-          <dt>Check-in</dt>
-          <dd data-testid="reserve-checkin">{checkIn ? formatHumanDate(checkIn) : 'Add date'}</dd>
-        </div>
-        <div>
-          <dt>Check-out</dt>
-          <dd data-testid="reserve-checkout">{checkOut ? formatHumanDate(checkOut) : 'Add date'}</dd>
-        </div>
-      </dl>
-
       <a
         href="#availability"
         className="btn btn--primary btn--block"
@@ -355,16 +344,9 @@ export default function HotelDetail({ hotel, onBack, checkIn, checkOut, onChange
 
         <div className="detail-hero__content">
           <div className="detail-hero__breadcrumb">
-            <button
-              type="button"
-              className="detail-hero__back"
-              onClick={onBack}
-              data-testid="hero-back-button"
-            >
-              ← All hotels
-            </button>
-            <span className="detail-hero__sep" aria-hidden="true">·</span>
             <span className="detail-hero__crumb">{hotel.address.city}</span>
+            <span className="detail-hero__sep" aria-hidden="true">·</span>
+            <span className="detail-hero__crumb">{hotel.address.country}</span>
           </div>
 
           <h1 className="detail-hero__title" data-testid="detail-title">{hotel.name}</h1>

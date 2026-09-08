@@ -948,7 +948,7 @@ a:hover { color: var(--c-accent); }
 .highlight-strip {
   list-style: none;
   padding: 0;
-  margin: calc(var(--sp-6) * -1 + var(--sp-3)) 0 var(--sp-5);
+  margin: var(--sp-4) 0 var(--sp-5);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-3);
