@@ -251,7 +251,7 @@ function DateRangePicker({ checkIn, checkOut, onChangeDates, minIso }) {
     setPendingIn('');
   };
 
-  const isDisabled = (iso) => minIso && iso < minIso;
+  const isDisabled = (iso) => false;
   // The "start" cell can be either the committed check-in or the pending
   // (in-progress) one — pending takes priority so the highlight is instant.
   const isStart = (iso) => iso === (pendingIn || checkIn);

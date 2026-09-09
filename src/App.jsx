@@ -12,6 +12,7 @@
  */
 
 import { useHotels } from './store/useHotels';
+import * as HotelMeta from './store/useHotels';
 import FilterDashboard from './components/FilterDashboard';
 import HotelDetail from './components/HotelDetail';
 
@@ -102,6 +103,7 @@ export default function App() {
               filtered={filtered}
               filters={filters}
               defaultFilters={defaultFilters}
+              meta={HotelMeta}
               onChangeFilter={setFilters}
               onReset={resetFilters}
               onSelect={selectHotel}
