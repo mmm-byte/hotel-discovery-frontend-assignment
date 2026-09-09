@@ -200,10 +200,3 @@ before keeping it.
 | TS / type-safety | Skipped | The repo scaffold already chose JS; staying consistent |
 
 ---
-
-## 13. Time budget honesty
-
-The brief said "no more than 3 hours". v1 came in around 3 hours. v2 added
-the reviewer's requested features (more filters, real images, sticky bar,
-custom calendar to fix the date bug, etc.) in another 2-3 hours. The
-take-home-as-product polish is what makes this feel like a real booking site.
