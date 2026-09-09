@@ -52,7 +52,7 @@ export default function App() {
               <path d="M9 22V12l4.5-4h5L23 12v10" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round"/>
               <circle cx="16" cy="14" r="2" fill="#fff"/>
             </svg>
-            <span className="app-brand__word">Staylume</span>
+            <span className="app-brand__word"></span>
           </a>
 
           {/* Top search bar — lives in the header so it's always reachable */}
@@ -120,7 +120,7 @@ export default function App() {
         <div className="container">
           <div className="app-footer__grid">
             <div>
-              <div className="app-footer__brand">Staylume</div>
+              <div className="app-footer__brand"></div>
               <p className="app-footer__tag">
                 Lightweight hotel discovery for demo purposes. Prices include taxes &amp; fees unless noted.
               </p>
@@ -151,7 +151,7 @@ export default function App() {
             </div>
           </div>
           <div className="app-footer__bottom">
-            <span>© 2026 Staylume (demo)</span>
+            <span>© 2026 (demo)</span>
             <span className="spacer" />
             <span>Mock data — no real bookings.</span>
           </div>
